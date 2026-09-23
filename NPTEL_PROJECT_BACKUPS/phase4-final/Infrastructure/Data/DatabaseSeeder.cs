@@ -1,0 +1,664 @@
+using Microsoft.EntityFrameworkCore;
+using NPTELManagement.Core.Entities;
+using NPTELManagement.Core.Enums;
+using NPTELManagement.Core.Interfaces;
+using ExamStatusEntity = NPTELManagement.Core.Entities.ExamStatus;
+
+namespace NPTELManagement.Infrastructure.Data;
+
+public static class DatabaseSeeder
+{
+    public static async Task SeedAsync(ApplicationDbContext context, IPasswordHasher passwordHasher)
+    {
+        // 1. Department
+        if (!await context.Departments.AnyAsync(d => d.Code == "CSE"))
+        {
+            context.Departments.Add(new Department
+            {
+                DepartmentId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                Code = "CSE",
+                Name = "Computer Science and Engineering"
+            });
+            await context.SaveChangesAsync();
+        }
+
+        // 2. Classes
+        if (!await context.Classes.AnyAsync())
+        {
+            context.Classes.AddRange(
+                new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222201"), Department = "CSE", Year = 1, Section = "A" },
+                new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222202"), Department = "CSE", Year = 2, Section = "A" },
+                new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222203"), Department = "CSE", Year = 3, Section = "A" },
+                new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222204"), Department = "CSE", Year = 4, Section = "A" }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        if (!await context.Classes.AnyAsync(c => c.Department == "CSE" && c.Year == 3 && c.Section == "B"))
+        {
+            context.Classes.Add(new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222205"), Department = "CSE", Year = 3, Section = "B" });
+            await context.SaveChangesAsync();
+        }
+
+        // 3. Courses
+        var course1Id = Guid.Parse("33333333-3333-3333-3333-333333333301");
+        var course2Id = Guid.Parse("33333333-3333-3333-3333-333333333302");
+
+        var course1 = await context.Courses.FirstOrDefaultAsync(c => c.CourseId == course1Id);
+        if (course1 == null)
+        {
+            course1 = new Course
+            {
+                CourseId = course1Id,
+                CourseCode = "noc24-cs01",
+                CourseName = "Programming in Java",
+                DurationWeeks = 12,
+                CourseStartDate = DateTime.UtcNow.AddDays(-60),
+                CourseEndDate = DateTime.UtcNow.AddDays(30)
+            };
+            context.Courses.Add(course1);
+        }
+        else
+        {
+            course1.CourseStartDate ??= DateTime.UtcNow.AddDays(-60);
+            course1.CourseEndDate ??= DateTime.UtcNow.AddDays(30);
+        }
+
+        var course2 = await context.Courses.FirstOrDefaultAsync(c => c.CourseId == course2Id);
+        if (course2 == null)
+        {
+            course2 = new Course
+            {
+                CourseId = course2Id,
+                CourseCode = "noc24-cs02",
+                CourseName = "Design and Analysis of Algorithms",
+                DurationWeeks = 8,
+                CourseStartDate = DateTime.UtcNow.AddDays(-30),
+                CourseEndDate = DateTime.UtcNow.AddDays(30)
+            };
+            context.Courses.Add(course2);
+        }
+        else
+        {
+            course2.CourseStartDate ??= DateTime.UtcNow.AddDays(-30);
+            course2.CourseEndDate ??= DateTime.UtcNow.AddDays(30);
+        }
+        await context.SaveChangesAsync();
+
+        // 4. Admin User
+        var adminUserId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        if (!await context.Users.AnyAsync(u => u.Username == "admin_cse_01"))
+        {
+            var adminUser = new User
+            {
+                Id = adminUserId,
+                Username = "admin_cse_01",
+                PasswordHash = passwordHasher.HashPassword("Admin@Nptel2026"),
+                Role = UserRole.Admin,
+                Email = "admin.cse@college.edu",
+                IsActive = true
+            };
+            context.Users.Add(adminUser);
+
+            var admin = new Admin
+            {
+                AdminId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa01"),
+                UserId = adminUserId,
+                AdminIdentifier = "ADM-CSE-01"
+            };
+            context.Admins.Add(admin);
+            await context.SaveChangesAsync();
+        }
+
+        // 5. Staff Users (All 4 CSE Year In-Charges)
+        // CSE 3rd Year In-Charge (Existing)
+        var staffUserId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        if (!await context.Users.AnyAsync(u => u.Username == "CSE-STF-01"))
+        {
+            var staffUser = new User
+            {
+                Id = staffUserId,
+                Username = "CSE-STF-01",
+                PasswordHash = passwordHasher.HashPassword("Staff@Nptel2026"),
+                Role = UserRole.Staff,
+                Email = "staff.cse01@college.edu",
+                IsActive = true
+            };
+            context.Users.Add(staffUser);
+
+            var staff = new Staff
+            {
+                StaffId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb01"),
+                UserId = staffUserId,
+                StaffName = "Dr. K. Ramanathan",
+                StaffIdentifier = "CSE-STF-01",
+                Department = "CSE",
+                AssignedYear = 3,
+                AssignedClass = "A"
+            };
+            context.StaffMembers.Add(staff);
+            await context.SaveChangesAsync();
+        }
+
+        // CSE 1st Year In-Charge
+        var staff1UserId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb11");
+        if (!await context.Users.AnyAsync(u => u.Username == "CSE-STF-101"))
+        {
+            var staffUser1 = new User
+            {
+                Id = staff1UserId,
+                Username = "CSE-STF-101",
+                PasswordHash = passwordHasher.HashPassword("Staff@Nptel2026"),
+                Role = UserRole.Staff,
+                Email = "staff.cse101@college.edu",
+                IsActive = true
+            };
+            context.Users.Add(staffUser1);
+
+            context.StaffMembers.Add(new Staff
+            {
+                StaffId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb12"),
+                UserId = staff1UserId,
+                StaffName = "Dr. A. Suresh",
+                StaffIdentifier = "CSE-STF-101",
+                Department = "CSE",
+                AssignedYear = 1,
+                AssignedClass = "A"
+            });
+            await context.SaveChangesAsync();
+        }
+
+        // CSE 2nd Year In-Charge
+        var staff2UserId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb21");
+        if (!await context.Users.AnyAsync(u => u.Username == "CSE-STF-102"))
+        {
+            var staffUser2 = new User
+            {
+                Id = staff2UserId,
+                Username = "CSE-STF-102",
+                PasswordHash = passwordHasher.HashPassword("Staff@Nptel2026"),
+                Role = UserRole.Staff,
+                Email = "staff.cse102@college.edu",
+                IsActive = true
+            };
+            context.Users.Add(staffUser2);
+
+            context.StaffMembers.Add(new Staff
+            {
+                StaffId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb22"),
+                UserId = staff2UserId,
+                StaffName = "Dr. B. Priya",
+                StaffIdentifier = "CSE-STF-102",
+                Department = "CSE",
+                AssignedYear = 2,
+                AssignedClass = "A"
+            });
+            await context.SaveChangesAsync();
+        }
+
+        // CSE Final Year In-Charge
+        var staff4UserId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb41");
+        if (!await context.Users.AnyAsync(u => u.Username == "CSE-STF-104"))
+        {
+            var staffUser4 = new User
+            {
+                Id = staff4UserId,
+                Username = "CSE-STF-104",
+                PasswordHash = passwordHasher.HashPassword("Staff@Nptel2026"),
+                Role = UserRole.Staff,
+                Email = "staff.cse104@college.edu",
+                IsActive = true
+            };
+            context.Users.Add(staffUser4);
+
+            context.StaffMembers.Add(new Staff
+            {
+                StaffId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb42"),
+                UserId = staff4UserId,
+                StaffName = "Dr. D. Venkatesh",
+                StaffIdentifier = "CSE-STF-104",
+                Department = "CSE",
+                AssignedYear = 4,
+                AssignedClass = "A"
+            });
+            await context.SaveChangesAsync();
+        }
+
+        // 6. Student 1 (CSE 3rd Year - Assigned to Staff 1)
+        var student1UserId = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
+        var student1Id = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccc01");
+        if (!await context.Users.AnyAsync(u => u.Username == "951021104001"))
+        {
+            var studentUser = new User
+            {
+                Id = student1UserId,
+                Username = "951021104001",
+                PasswordHash = passwordHasher.HashPassword("Student@Nptel2026"),
+                Role = UserRole.Student,
+                Email = "student.951021104001@college.edu",
+                IsActive = true
+            };
+            context.Users.Add(studentUser);
+
+            var student = new Student
+            {
+                StudentId = student1Id,
+                UserId = student1UserId,
+                Name = "Aravind Swaminathan",
+                RegisterNumber = "951021104001",
+                Department = "CSE",
+                ClassSection = "A",
+                Year = 3,
+                Batch = "2021-2025",
+                Email = "student.951021104001@college.edu",
+                Phone = "9876543210"
+            };
+            context.Students.Add(student);
+            await context.SaveChangesAsync();
+        }
+
+        // Student 1 Registration (Programming in Java - InProgress)
+        var reg1Id = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddd01");
+        var reg1 = await context.NptelRegistrations.FirstOrDefaultAsync(r => r.RegistrationId == reg1Id);
+        if (reg1 == null)
+        {
+            reg1 = new NptelRegistration
+            {
+                RegistrationId = reg1Id,
+                StudentId = student1Id,
+                CourseId = course1Id,
+                EnrollmentDate = DateTime.UtcNow.AddDays(-60),
+                Status = RegistrationStatus.InProgress
+            };
+            context.NptelRegistrations.Add(reg1);
+            await context.SaveChangesAsync();
+        }
+        else
+        {
+            reg1.Status = RegistrationStatus.InProgress;
+            await context.SaveChangesAsync();
+        }
+
+        // Student 1 Timeline (11 Stages)
+        if (!await context.CourseTimelines.AnyAsync(t => t.RegistrationId == reg1Id))
+        {
+            var timelineItems = new List<CourseTimeline>
+            {
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Course Registered", Description = "Enrolled via SWAYAM portal for Programming in Java.", Status = "Completed", EventDate = DateTime.UtcNow.AddDays(-60), DisplayOrder = 1, WeekNumber = 0 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Course In Progress", Description = "Active participation in weekly lectures and assessments.", Status = "Completed", EventDate = DateTime.UtcNow.AddDays(-55), DisplayOrder = 2, WeekNumber = 1 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Course Completed", Description = "12 weeks curriculum and all mandatory assignments submitted.", Status = "Current", EventDate = DateTime.UtcNow.AddDays(30), DisplayOrder = 3, WeekNumber = 12 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Exam Application Pending", Description = "Registration window opened on NPTEL portal.", Status = "Completed", EventDate = DateTime.UtcNow.AddDays(-35), DisplayOrder = 4 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Exam Applied", Description = "Examination fee paid and test centre selected.", Status = "Completed", EventDate = DateTime.UtcNow.AddDays(-20), DisplayOrder = 5 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Exam Completed", Description = "Proctored in-person examination.", Status = "Pending", EventDate = DateTime.UtcNow.AddDays(15), DisplayOrder = 6 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Certificate Submission Pending", Description = "Awaiting official score and e-certificate release.", Status = "Pending", DisplayOrder = 7 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Certificate Submitted", Description = "E-Certificate uploaded by student for department records.", Status = "Pending", DisplayOrder = 8 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Certificate Under Verification", Description = "Staff coordinator reviewing grade and authenticity.", Status = "Pending", DisplayOrder = 9 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Certificate Verified", Description = "Certificate successfully verified by faculty in-charge.", Status = "Pending", DisplayOrder = 10 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg1Id, Title = "Certificate Received", Description = "Credit transfer and final administrative sign-off.", Status = "Pending", DisplayOrder = 11 }
+            };
+            context.CourseTimelines.AddRange(timelineItems);
+            await context.SaveChangesAsync();
+        }
+
+        // Student 1 Exam Status
+        var exam1 = await context.ExamStatuses.FirstOrDefaultAsync(e => e.RegistrationId == reg1Id);
+        if (exam1 == null)
+        {
+            context.ExamStatuses.Add(new ExamStatusEntity
+            {
+                ExamStatusId = Guid.NewGuid(),
+                RegistrationId = reg1Id,
+                ExamApplicationStatus = "Applied",
+                ExamApplicationDate = DateTime.UtcNow.AddDays(-20),
+                ExamApplicationDeadline = DateTime.UtcNow.AddDays(-10),
+                ExamDate = DateTime.UtcNow.AddDays(15),
+                HallTicketStatus = "Available",
+                Status = "Scheduled",
+                Score = null,
+                PassStatus = null
+            });
+            await context.SaveChangesAsync();
+        }
+        else
+        {
+            exam1.ExamApplicationStatus = "Applied";
+            exam1.ExamApplicationDate = DateTime.UtcNow.AddDays(-20);
+            exam1.ExamApplicationDeadline = DateTime.UtcNow.AddDays(-10);
+            exam1.ExamDate = DateTime.UtcNow.AddDays(15);
+            exam1.HallTicketStatus = "Available";
+            exam1.Status = "Scheduled";
+            await context.SaveChangesAsync();
+        }
+
+        // Student 1 Certificate
+        var cert1 = await context.Certificates.FirstOrDefaultAsync(c => c.RegistrationId == reg1Id);
+        if (cert1 == null)
+        {
+            context.Certificates.Add(new Certificate
+            {
+                CertificateId = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01"),
+                RegistrationId = reg1Id,
+                StoragePath = null,
+                IssuedDate = null,
+                VerifiedStatus = CertificateStatus.Pending
+            });
+            await context.SaveChangesAsync();
+        }
+        else
+        {
+            cert1.VerifiedStatus = CertificateStatus.Pending;
+            cert1.StoragePath = null;
+            await context.SaveChangesAsync();
+        }
+
+        // Student 1 Notifications
+        if (!await context.Notifications.AnyAsync(n => n.UserId == student1UserId))
+        {
+            context.Notifications.AddRange(
+                new Notification
+                {
+                    NotificationId = Guid.Parse("11111111-2222-3333-4444-555555555501"),
+                    UserId = student1UserId,
+                    Title = "Exam Application Confirmed",
+                    Message = "Your exam application for Programming in Java is confirmed. Hall ticket is available.",
+                    IsRead = false,
+                    RelatedRegistrationId = reg1Id,
+                    CreatedAt = DateTime.UtcNow.AddDays(-2)
+                },
+                new Notification
+                {
+                    NotificationId = Guid.Parse("11111111-2222-3333-4444-555555555502"),
+                    UserId = student1UserId,
+                    Title = "Week 8 Assignment Released",
+                    Message = "Week 8 programming assignment is now live on the NPTEL portal. Due date: Wednesday.",
+                    IsRead = true,
+                    RelatedRegistrationId = reg1Id,
+                    CreatedAt = DateTime.UtcNow.AddDays(-7)
+                },
+                new Notification
+                {
+                    NotificationId = Guid.Parse("11111111-2222-3333-4444-555555555503"),
+                    UserId = student1UserId,
+                    Title = "Hall Ticket Released",
+                    Message = "Hall ticket for upcoming NPTEL proctored exam is now available.",
+                    IsRead = false,
+                    RelatedRegistrationId = reg1Id,
+                    CreatedAt = DateTime.UtcNow.AddHours(-12)
+                }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        // 7. Student 2 (CSE 1st Year - Out-of-scope for Staff 1)
+        var student2UserId = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
+        var student2Id = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffff02");
+        if (!await context.Users.AnyAsync(u => u.Username == "951021104002"))
+        {
+            var student2User = new User
+            {
+                Id = student2UserId,
+                Username = "951021104002",
+                PasswordHash = passwordHasher.HashPassword("Student@Nptel2026"),
+                Role = UserRole.Student,
+                Email = "student.951021104002@college.edu",
+                IsActive = true
+            };
+            context.Users.Add(student2User);
+
+            var student2 = new Student
+            {
+                StudentId = student2Id,
+                UserId = student2UserId,
+                Name = "Bhavani S",
+                RegisterNumber = "951021104002",
+                Department = "CSE",
+                ClassSection = "A",
+                Year = 1, // 1st year (Staff 1 is 3rd year!)
+                Batch = "2023-2027",
+                Email = "student.951021104002@college.edu",
+                Phone = "9876543211"
+            };
+            context.Students.Add(student2);
+            await context.SaveChangesAsync();
+        }
+
+        // Student 2 Registration (Course 2 - Registered)
+        var reg2Id = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddd02");
+        if (!await context.NptelRegistrations.AnyAsync(r => r.RegistrationId == reg2Id))
+        {
+            context.NptelRegistrations.Add(new NptelRegistration
+            {
+                RegistrationId = reg2Id,
+                StudentId = student2Id,
+                CourseId = course2Id,
+                EnrollmentDate = DateTime.UtcNow.AddDays(-25),
+                Status = RegistrationStatus.Registered
+            });
+            await context.SaveChangesAsync();
+
+            var timeline2 = new List<CourseTimeline>
+            {
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg2Id, Title = "Course Registered", Description = "Enrolled via SWAYAM portal for Design and Analysis of Algorithms.", Status = "Completed", EventDate = DateTime.UtcNow.AddDays(-25), DisplayOrder = 1, WeekNumber = 0 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg2Id, Title = "Course In Progress", Description = "Course starting soon.", Status = "Current", DisplayOrder = 2 },
+                new() { TimelineId = Guid.NewGuid(), RegistrationId = reg2Id, Title = "Course Completed", Description = "8 weeks curriculum.", Status = "Pending", DisplayOrder = 3 }
+            };
+            context.CourseTimelines.AddRange(timeline2);
+
+            context.ExamStatuses.Add(new ExamStatusEntity
+            {
+                ExamStatusId = Guid.NewGuid(),
+                RegistrationId = reg2Id,
+                ExamApplicationStatus = "NotStarted",
+                Status = "NotStarted"
+            });
+
+            context.Certificates.Add(new Certificate
+            {
+                CertificateId = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee02"),
+                RegistrationId = reg2Id,
+                VerifiedStatus = CertificateStatus.Pending
+            });
+
+            context.Notifications.Add(new Notification
+            {
+                NotificationId = Guid.Parse("11111111-2222-3333-4444-555555555599"),
+                UserId = student2UserId,
+                Title = "Welcome to NPTEL",
+                Message = "You have successfully registered for Design and Analysis of Algorithms.",
+                IsRead = false,
+                RelatedRegistrationId = reg2Id,
+                CreatedAt = DateTime.UtcNow.AddDays(-1)
+            });
+
+            await context.SaveChangesAsync();
+        }
+
+        // 8. Student 3 (CSE 2nd Year Section A)
+        var student3UserId = Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff3");
+        var student3Id = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffff03");
+        if (!await context.Users.AnyAsync(u => u.Username == "951021104003"))
+        {
+            var student3User = new User
+            {
+                Id = student3UserId,
+                Username = "951021104003",
+                PasswordHash = passwordHasher.HashPassword("Student@Nptel2026"),
+                Role = UserRole.Student,
+                Email = "student.951021104003@college.edu",
+                IsActive = true
+            };
+            context.Users.Add(student3User);
+
+            var student3 = new Student
+            {
+                StudentId = student3Id,
+                UserId = student3UserId,
+                Name = "Chitra M",
+                RegisterNumber = "951021104003",
+                Department = "CSE",
+                ClassSection = "A",
+                Year = 2,
+                Batch = "2022-2026",
+                Email = "student.951021104003@college.edu",
+                Phone = "9876543212"
+            };
+            context.Students.Add(student3);
+            await context.SaveChangesAsync();
+
+            var reg3Id = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddd03");
+            context.NptelRegistrations.Add(new NptelRegistration
+            {
+                RegistrationId = reg3Id,
+                StudentId = student3Id,
+                CourseId = course1Id,
+                EnrollmentDate = DateTime.UtcNow.AddDays(-40),
+                Status = RegistrationStatus.InProgress
+            });
+
+            context.ExamStatuses.Add(new ExamStatusEntity
+            {
+                ExamStatusId = Guid.NewGuid(),
+                RegistrationId = reg3Id,
+                ExamApplicationStatus = "Applied",
+                ExamApplicationDate = DateTime.UtcNow.AddDays(-15),
+                ExamDate = DateTime.UtcNow.AddDays(20),
+                Status = "Scheduled"
+            });
+
+            context.Certificates.Add(new Certificate
+            {
+                CertificateId = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee03"),
+                RegistrationId = reg3Id,
+                VerifiedStatus = CertificateStatus.Pending
+            });
+
+            await context.SaveChangesAsync();
+        }
+
+        // 9. Student 4 (CSE 4th Year Section A)
+        var student4UserId = Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff4");
+        var student4Id = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffff04");
+        if (!await context.Users.AnyAsync(u => u.Username == "951021104004"))
+        {
+            var student4User = new User
+            {
+                Id = student4UserId,
+                Username = "951021104004",
+                PasswordHash = passwordHasher.HashPassword("Student@Nptel2026"),
+                Role = UserRole.Student,
+                Email = "student.951021104004@college.edu",
+                IsActive = true
+            };
+            context.Users.Add(student4User);
+
+            var student4 = new Student
+            {
+                StudentId = student4Id,
+                UserId = student4UserId,
+                Name = "Dinesh Kumar",
+                RegisterNumber = "951021104004",
+                Department = "CSE",
+                ClassSection = "A",
+                Year = 4,
+                Batch = "2020-2024",
+                Email = "student.951021104004@college.edu",
+                Phone = "9876543213"
+            };
+            context.Students.Add(student4);
+            await context.SaveChangesAsync();
+
+            var reg4Id = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddd04");
+            context.NptelRegistrations.Add(new NptelRegistration
+            {
+                RegistrationId = reg4Id,
+                StudentId = student4Id,
+                CourseId = course2Id,
+                EnrollmentDate = DateTime.UtcNow.AddDays(-80),
+                Status = RegistrationStatus.Completed
+            });
+
+            context.ExamStatuses.Add(new ExamStatusEntity
+            {
+                ExamStatusId = Guid.NewGuid(),
+                RegistrationId = reg4Id,
+                ExamApplicationStatus = "Applied",
+                ExamDate = DateTime.UtcNow.AddDays(-20),
+                Status = "Completed",
+                Score = 88.0m,
+                PassStatus = "Elite"
+            });
+
+            context.Certificates.Add(new Certificate
+            {
+                CertificateId = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee04"),
+                RegistrationId = reg4Id,
+                VerifiedStatus = CertificateStatus.Verified,
+                SubmittedDate = DateTime.UtcNow.AddDays(-10),
+                IssuedDate = DateTime.UtcNow.AddDays(-12),
+                VerifiedDate = DateTime.UtcNow.AddDays(-5)
+            });
+
+            await context.SaveChangesAsync();
+        }
+
+        // 10. Student 5 (CSE 3rd Year Section B — to test wrong class isolation for Staff 1)
+        var student5UserId = Guid.Parse("ffffffff-ffff-ffff-ffff-fffffffffff5");
+        var student5Id = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffff05");
+        if (!await context.Users.AnyAsync(u => u.Username == "951021104005"))
+        {
+            var student5User = new User
+            {
+                Id = student5UserId,
+                Username = "951021104005",
+                PasswordHash = passwordHasher.HashPassword("Student@Nptel2026"),
+                Role = UserRole.Student,
+                Email = "student.951021104005@college.edu",
+                IsActive = true
+            };
+            context.Users.Add(student5User);
+
+            var student5 = new Student
+            {
+                StudentId = student5Id,
+                UserId = student5UserId,
+                Name = "Ezhil V",
+                RegisterNumber = "951021104005",
+                Department = "CSE",
+                ClassSection = "B",
+                Year = 3,
+                Batch = "2021-2025",
+                Email = "student.951021104005@college.edu",
+                Phone = "9876543214"
+            };
+            context.Students.Add(student5);
+            await context.SaveChangesAsync();
+
+            var reg5Id = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddd05");
+            context.NptelRegistrations.Add(new NptelRegistration
+            {
+                RegistrationId = reg5Id,
+                StudentId = student5Id,
+                CourseId = course1Id,
+                EnrollmentDate = DateTime.UtcNow.AddDays(-15),
+                Status = RegistrationStatus.Registered
+            });
+
+            context.ExamStatuses.Add(new ExamStatusEntity
+            {
+                ExamStatusId = Guid.NewGuid(),
+                RegistrationId = reg5Id,
+                ExamApplicationStatus = "NotStarted",
+                Status = "NotStarted"
+            });
+
+            context.Certificates.Add(new Certificate
+            {
+                CertificateId = Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeee05"),
+                RegistrationId = reg5Id,
+                VerifiedStatus = CertificateStatus.Pending
+            });
+
+            await context.SaveChangesAsync();
+        }
+    }
+}

@@ -1,0 +1,254 @@
+<UserControl x:Class="NPTELManagement.Desktop.Views.StaffStudentsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:common="clr-namespace:NPTELManagement.Desktop.Common"
+             mc:Ignorable="d" 
+             d:DesignHeight="800" d:DesignWidth="1100"
+             Background="{StaticResource BackgroundBrush}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <common:InverseBooleanToVisibilityConverter x:Key="InvBoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid Margin="32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 1. Header & Assigned Scope Badge -->
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="STUDENT MONITORING DIRECTORY"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource SecondaryBrush}"
+                               Margin="0,0,0,4"/>
+                    
+                    <TextBlock Text="Assigned Students"
+                               FontSize="22"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource PrimaryBrush}"
+                               Margin="0,0,0,8"/>
+
+                    <!-- Read-Only Scope Badge -->
+                    <StackPanel Orientation="Horizontal">
+                        <Border Background="#DBEAFE" CornerRadius="4" Padding="10,4" Margin="0,0,12,0">
+                            <TextBlock Text="{Binding StaffDisplayAssignedScope, StringFormat='🔒 Scope: {0}'}"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource ActionBrush}"/>
+                        </Border>
+
+                        <Border Background="#F1F5F9" CornerRadius="4" Padding="10,4">
+                            <TextBlock Text="{Binding StaffDisplayName, StringFormat='In-Charge: {0}'}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Content="↻ Refresh List"
+                        Style="{StaticResource SecondaryButton}"
+                        Command="{Binding RefreshCommand}"
+                        VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- 2. Loading & Error States -->
+        <ProgressBar Grid.Row="1"
+                     IsIndeterminate="True"
+                     Height="4"
+                     Foreground="{StaticResource ActionBrush}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Margin="0,0,0,12"
+                     Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"/>
+
+        <Border Grid.Row="1"
+                Background="{StaticResource DangerLightBrush}"
+                BorderBrush="{StaticResource DangerBrush}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="16,12"
+                Margin="0,0,0,16"
+                Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="Retry" Style="{StaticResource PrimaryButton}" Command="{Binding RefreshCommand}" Padding="12,6"/>
+            </Grid>
+        </Border>
+
+        <!-- 3. Search and Multi-Filter Bar -->
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="16" Margin="0,0,0,16">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Search Input Row -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox Grid.Column="0"
+                             Style="{StaticResource ModernTextBox}"
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Search by student name, register number, class, or batch"
+                             Margin="0,0,12,0"/>
+
+                    <Button Grid.Column="1"
+                            Content="Reset Filters"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding ClearFiltersCommand}"
+                            Height="36"
+                            Padding="14,0"/>
+                </Grid>
+
+                <!-- Filters Row -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Class Section Filter -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <TextBlock Text="Class:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                        <ComboBox ItemsSource="{Binding AvailableClasses}"
+                                  SelectedItem="{Binding SelectedClass, Mode=TwoWay}"
+                                  Width="80" Height="32"
+                                  VerticalContentAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Registration Status Filter -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <TextBlock Text="Reg Status:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                        <ComboBox ItemsSource="{Binding AvailableRegistrationStatuses}"
+                                  SelectedItem="{Binding SelectedRegistrationStatus, Mode=TwoWay}"
+                                  Width="110" Height="32"
+                                  VerticalContentAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Exam Status Filter -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <TextBlock Text="Exam:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                        <ComboBox ItemsSource="{Binding AvailableExamStatuses}"
+                                  SelectedItem="{Binding SelectedExamStatus, Mode=TwoWay}"
+                                  Width="105" Height="32"
+                                  VerticalContentAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Certificate Status Filter -->
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                        <TextBlock Text="Certificate:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"/>
+                        <ComboBox ItemsSource="{Binding AvailableCertificateStatuses}"
+                                  SelectedItem="{Binding SelectedCertificateStatus, Mode=TwoWay}"
+                                  Width="120" Height="32"
+                                  VerticalContentAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Count Badge -->
+                    <TextBlock Grid.Column="4"
+                               Text="{Binding StudentCount, StringFormat='Showing {0} student(s)'}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               FontWeight="SemiBold"
+                               FontSize="13"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"/>
+                </Grid>
+
+            </Grid>
+        </Border>
+
+        <!-- 4. Read-Only Professional DataGrid -->
+        <Grid Grid.Row="3">
+            
+            <DataGrid Style="{StaticResource ModernDataGrid}"
+                      ItemsSource="{Binding Students}"
+                      SelectedItem="{Binding SelectedStudent, Mode=TwoWay}">
+                
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                        <EventSetter Event="MouseDoubleClick" Handler="DataGridRow_MouseDoubleClick"/>
+                    </Style>
+                </DataGrid.RowStyle>
+
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Student Name" Binding="{Binding Name}" FontWeight="SemiBold" Width="1.5*"/>
+                    <DataGridTextColumn Header="Register No" Binding="{Binding RegisterNumber}" Width="1.2*"/>
+                    <DataGridTextColumn Header="Class" Binding="{Binding ClassSection}" Width="0.6*"/>
+                    <DataGridTextColumn Header="Year" Binding="{Binding Year}" Width="0.5*"/>
+                    <DataGridTextColumn Header="Batch" Binding="{Binding Batch}" Width="0.9*"/>
+                    <DataGridTextColumn Header="Courses" Binding="{Binding RegisteredCourseCount}" Width="0.7*"/>
+                    <DataGridTextColumn Header="In Progress" Binding="{Binding InProgressCount}" Width="0.8*"/>
+                    <DataGridTextColumn Header="Exam Status" Binding="{Binding ExamStatusSummary}" Width="*"/>
+                    <DataGridTextColumn Header="Certificate Status" Binding="{Binding CertificateStatusSummary}" Width="1.1*"/>
+                    
+                    <!-- Action Column -->
+                    <DataGridTemplateColumn Header="Action" Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="View Details"
+                                        Style="{StaticResource PrimaryButton}"
+                                        Padding="10,4"
+                                        Height="28"
+                                        FontSize="11"
+                                        Command="{Binding DataContext.ViewDetailsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Empty State Overlay -->
+            <Border Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="40"
+                    Visibility="{Binding HasNoStudents, Converter={StaticResource BoolToVis}}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="No matching students found."
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,6"/>
+                    <TextBlock Text="No student records match your search query or filter settings within your assigned scope."
+                               FontSize="13"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+
+        </Grid>
+
+    </Grid>
+</UserControl>

@@ -1,0 +1,387 @@
+<UserControl x:Class="NPTELManagement.Desktop.Views.StaffStudentDetailsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:common="clr-namespace:NPTELManagement.Desktop.Common"
+             mc:Ignorable="d" 
+             d:DesignHeight="950" d:DesignWidth="1100"
+             Background="{StaticResource BackgroundBrush}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <common:InverseBooleanToVisibilityConverter x:Key="InvBoolToVis"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="32">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 1. Header with Back Button -->
+            <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0"
+                            Content="← Back to Students"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding BackCommand}"
+                            VerticalAlignment="Center"
+                            Margin="0,0,20,0"/>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="STUDENT ACADEMIC &amp; NPTEL PROFILE (READ-ONLY)"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource SecondaryBrush}"
+                                   Margin="0,0,0,2"/>
+                        <TextBlock Text="{Binding StudentDisplayName}"
+                                   FontSize="22"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource PrimaryBrush}"/>
+                        <TextBlock Text="{Binding StudentDisplayRegisterNo, StringFormat='Register No: {0}'}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <Button Grid.Column="2"
+                            Content="↻ Refresh"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding RefreshCommand}"
+                            VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
+            <!-- 2. Loading & Error States -->
+            <ProgressBar Grid.Row="1"
+                         IsIndeterminate="True"
+                         Height="4"
+                         Foreground="{StaticResource ActionBrush}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Margin="0,0,0,12"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"/>
+
+            <Border Grid.Row="1"
+                    Background="{StaticResource DangerLightBrush}"
+                    BorderBrush="{StaticResource DangerBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="16,12"
+                    Margin="0,0,0,16"
+                    Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Retry" Style="{StaticResource PrimaryButton}" Command="{Binding RefreshCommand}" Padding="12,6"/>
+                </Grid>
+            </Border>
+
+            <!-- 3. Academic Profile Card -->
+            <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="👤 Academic Profile"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource PrimaryBrush}"
+                               Margin="0,0,0,16"/>
+
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Col 1: Dept & Year -->
+                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,12,12">
+                            <TextBlock Text="Department" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding Student.Department, TargetNullValue='—'}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </StackPanel>
+
+                        <!-- Col 2: Year & Class -->
+                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,12,12">
+                            <TextBlock Text="Year &amp; Class" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Student.Year, StringFormat='Year {0}'}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text=" — Sec " FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding Student.ClassSection, TargetNullValue='—'}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource ActionBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Col 3: Batch -->
+                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,12,12">
+                            <TextBlock Text="Academic Batch" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding Student.Batch, TargetNullValue='—'}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </StackPanel>
+
+                        <!-- Col 4: Register Number -->
+                        <StackPanel Grid.Row="0" Grid.Column="3" Margin="0,0,0,12">
+                            <TextBlock Text="Register Number" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding Student.RegisterNumber, TargetNullValue='—'}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </StackPanel>
+
+                        <!-- Row 2: Contact Details -->
+                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,12,0">
+                            <TextBlock Text="College Email" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding Student.Email, TargetNullValue='—'}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2">
+                            <TextBlock Text="Contact Phone" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding Student.Phone, TargetNullValue='—'}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 4. Registered NPTEL Courses Card -->
+            <Border Grid.Row="3" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="📚 NPTEL Course Enrollments"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource PrimaryBrush}"
+                               Margin="0,0,0,12"/>
+
+                    <DataGrid Style="{StaticResource ModernDataGrid}"
+                              ItemsSource="{Binding Student.Courses}"
+                              SelectedItem="{Binding SelectedCourse, Mode=TwoWay}"
+                              MaxHeight="200"
+                              Visibility="{Binding HasCourses, Converter={StaticResource BoolToVis}}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Course Name" Binding="{Binding CourseName}" FontWeight="SemiBold" Width="2*"/>
+                            <DataGridTextColumn Header="Code" Binding="{Binding CourseCode}" Width="*"/>
+                            <DataGridTextColumn Header="Duration" Binding="{Binding DurationWeeks, StringFormat='{}{0} Weeks'}" Width="0.8*"/>
+                            <DataGridTextColumn Header="Registration Date" Binding="{Binding RegistrationDate, StringFormat='{}{0:dd-MMM-yyyy}'}" Width="1.2*"/>
+                            <DataGridTextColumn Header="Status" Binding="{Binding RegistrationStatus}" Width="*"/>
+                            <DataGridTextColumn Header="Timeline State" Binding="{Binding CurrentTimelineStatus, TargetNullValue='—'}" Width="1.3*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock Text="No active course registrations found for this student."
+                               FontSize="13"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Visibility="{Binding HasNoCourses, Converter={StaticResource BoolToVis}}"
+                               Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 5. Exam & Certificate Status (Two Columns for Selected Course) -->
+            <Grid Grid.Row="4" Margin="0,0,0,16" Visibility="{Binding HasCourses, Converter={StaticResource BoolToVis}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Exam Status Card -->
+                <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,8,0">
+                    <StackPanel>
+                        <TextBlock Text="📝 Examination Status" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,14"/>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Application Status:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCourse.Exam.ExamApplicationStatus, TargetNullValue='Not Available'}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Application Date:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCourse.Exam.ExamApplicationDate, StringFormat='{}{0:dd-MMM-yyyy}', TargetNullValue='Not Available'}" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Application Deadline:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCourse.Exam.ExamApplicationDeadline, StringFormat='{}{0:dd-MMM-yyyy}', TargetNullValue='Not Available'}" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Exam Date:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCourse.Exam.ExamDate, StringFormat='{}{0:dd-MMM-yyyy}', TargetNullValue='Not Available'}" FontWeight="Bold" Foreground="{StaticResource ActionBrush}"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Hall Ticket:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCourse.Exam.HallTicketStatus, TargetNullValue='Not Available'}" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Exam Status:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCourse.Exam.ExamStatus, TargetNullValue='Not Available'}" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Score / Pass Status:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <TextBlock Text="{Binding SelectedCourse.Exam.Score, StringFormat='Score: {0}', TargetNullValue='Score: —'}" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,8,0"/>
+                                <TextBlock Text="{Binding SelectedCourse.Exam.PassStatus, StringFormat='({0})', TargetNullValue=''}" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Certificate Status Card -->
+                <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="8,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="📜 Certificate Verification Status" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,14"/>
+
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Verification Status:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <Border Grid.Column="1" Background="#F1F5F9" CornerRadius="4" Padding="8,2" HorizontalAlignment="Left">
+                                <TextBlock Text="{Binding SelectedCourse.Certificate.VerifiedStatus, TargetNullValue='Pending'}" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
+                            </Border>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Submitted Date:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCourse.Certificate.SubmittedDate, StringFormat='{}{0:dd-MMM-yyyy}', TargetNullValue='Not Available'}" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Issued Date:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCourse.Certificate.IssuedDate, StringFormat='{}{0:dd-MMM-yyyy}', TargetNullValue='Not Available'}" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Verified Date:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCourse.Certificate.VerifiedDate, StringFormat='{}{0:dd-MMM-yyyy}', TargetNullValue='Not Available'}" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Received Date:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedCourse.Certificate.ReceivedDate, StringFormat='{}{0:dd-MMM-yyyy}', TargetNullValue='Not Available'}" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Grid>
+
+                        <TextBlock Text="Staff can view certificate audit states. Certificate approval/verification is restricted to administrative workflows."
+                                   TextWrapping="Wrap"
+                                   FontSize="11"
+                                   FontStyle="Italic"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,14,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- 6. 11-Stage Timeline Summary Card -->
+            <Border Grid.Row="5" Style="{StaticResource CardStyle}" Visibility="{Binding HasCourses, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <TextBlock Text="⏳ NPTEL 11-Stage Workflow Timeline"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource PrimaryBrush}"
+                               Margin="0,0,0,16"/>
+
+                    <ItemsControl ItemsSource="{Binding Timeline}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="36"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Stage Number Badge -->
+                                    <Border Grid.Column="0"
+                                            Width="26" Height="26"
+                                            CornerRadius="13"
+                                            Background="{StaticResource BackgroundBrush}"
+                                            BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DisplayOrder}"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- Status Icon / Text -->
+                                    <Border Grid.Column="1" CornerRadius="4" Padding="6,2" Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#F1F5F9"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Status}" Value="Completed">
+                                                        <Setter Property="Background" Value="{StaticResource SuccessLightBrush}"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Status}" Value="Current">
+                                                        <Setter Property="Background" Value="#DBEAFE"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="Bold">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Completed">
+                                                            <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Current">
+                                                            <Setter Property="Foreground" Value="{StaticResource ActionBrush}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+
+                                    <!-- Title & Description -->
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+
+                                    <!-- Event Date -->
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding EventDate, StringFormat='{}{0:dd-MMM-yyyy}', TargetNullValue='—'}"
+                                               FontSize="11"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="12,0,0,0"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+        </Grid>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,188 @@
+<UserControl x:Class="NPTELManagement.Desktop.Views.AdminCoursesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:common="clr-namespace:NPTELManagement.Desktop.Common"
+             mc:Ignorable="d" 
+             d:DesignHeight="750" d:DesignWidth="1100"
+             Background="{StaticResource BackgroundBrush}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <common:InverseBooleanToVisibilityConverter x:Key="InvBoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 1. Header & Actions -->
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="ADMINISTRATION MODULE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource SecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="NPTEL Course Catalog &amp; Curriculum" FontSize="22" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
+                    <TextBlock Text="{Binding TotalCount, StringFormat='Total Courses in Catalog: {0}'}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="+ Add Course" Style="{StaticResource PrimaryButton}" Command="{Binding OpenCreateDialogCommand}" Margin="0,0,8,0" Padding="14,8"/>
+                    <Button Content="✎ Edit" Style="{StaticResource SecondaryButton}" Command="{Binding OpenEditDialogCommand}" Margin="0,0,8,0" Padding="12,8"/>
+                    <Button Content="⏻ Toggle Status" Style="{StaticResource SecondaryButton}" Command="{Binding ToggleStatusCommand}" Margin="0,0,8,0" Padding="12,8"/>
+                    <Button Content="↻ Refresh" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" Padding="12,8"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. Filters & Search Bar -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16" Padding="16,12">
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Margin="0,0,16,8">
+                    <TextBlock Text="Search (Course Code / Name)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="260" Style="{StaticResource FormTextBox}"/>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,16,8">
+                    <TextBlock Text="Status" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <ComboBox SelectedValue="{Binding SelectedStatus, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Width="110" Style="{StaticResource FormComboBox}">
+                        <ComboBoxItem Content="All"/>
+                        <ComboBoxItem Content="Active"/>
+                        <ComboBoxItem Content="Archived"/>
+                    </ComboBox>
+                </StackPanel>
+            </WrapPanel>
+        </Border>
+
+        <!-- 3. Course Table -->
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="0">
+            <Grid>
+                <DataGrid ItemsSource="{Binding Courses}"
+                          SelectedItem="{Binding SelectedCourse}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          GridLinesVisibility="Horizontal"
+                          HeadersVisibility="Column"
+                          BorderThickness="0"
+                          Background="White"
+                          RowHeight="42"
+                          SelectionMode="Single">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Course Code" Binding="{Binding CourseCode}" Width="150" FontWeight="Bold"/>
+                        <DataGridTextColumn Header="Course Title" Binding="{Binding CourseName}" Width="*"/>
+                        <DataGridTextColumn Header="Duration" Binding="{Binding DurationWeeks, StringFormat='{}{0} Weeks'}" Width="100"/>
+                        <DataGridTextColumn Header="Start Date" Binding="{Binding CourseStartDate, StringFormat='dd MMM yyyy'}" Width="120"/>
+                        <DataGridTextColumn Header="End Date" Binding="{Binding CourseEndDate, StringFormat='dd MMM yyyy'}" Width="120"/>
+                        <DataGridTemplateColumn Header="Status" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Left"
+                                            Background="{Binding Status, Converter={StaticResource TimelineStatusToBrushConverter}}">
+                                        <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Registrations" Binding="{Binding TotalRegistrations}" Width="110"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Loading Overlay -->
+                <Grid Background="#66FFFFFF" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="Loading courses..." HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- 4. Status Bar -->
+        <StackPanel Grid.Row="3" Margin="4,12,4,0" Orientation="Horizontal">
+            <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource SecondaryBrush}" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold"/>
+        </StackPanel>
+
+        <!-- Create Modal Overlay -->
+        <Grid Grid.RowSpan="4" Background="#80000000" Visibility="{Binding IsCreateDialogOpen, Converter={StaticResource BoolToVis}}">
+            <Border Style="{StaticResource CardStyle}" Width="480" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="24">
+                <StackPanel>
+                    <TextBlock Text="Add New Course to Catalog" FontSize="18" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,16"/>
+
+                    <TextBlock Text="Course Code (e.g. noc24-cs03)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding NewCourse.CourseCode, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBox}" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Course Title" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding NewCourse.CourseName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBox}" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Duration (Weeks)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding NewCourse.DurationWeeks, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBox}" Margin="0,0,0,12"/>
+
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Start Date" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                            <DatePicker SelectedDate="{Binding NewCourse.CourseStartDate}" Style="{StaticResource FormDatePicker}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="End Date" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                            <DatePicker SelectedDate="{Binding NewCourse.CourseEndDate}" Style="{StaticResource FormDatePicker}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelCreateCommand}" Margin="0,0,8,0" Padding="16,8"/>
+                        <Button Content="Save Course" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCreateCommand}" Padding="16,8"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Edit Modal Overlay -->
+        <Grid Grid.RowSpan="4" Background="#80000000" Visibility="{Binding IsEditDialogOpen, Converter={StaticResource BoolToVis}}">
+            <Border Style="{StaticResource CardStyle}" Width="480" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="24">
+                <StackPanel>
+                    <TextBlock Text="Edit Course Details" FontSize="18" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,16"/>
+
+                    <TextBlock Text="Course Title" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding EditCourse.CourseName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBox}" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Duration (Weeks)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding EditCourse.DurationWeeks, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBox}" Margin="0,0,0,12"/>
+
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Start Date" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                            <DatePicker SelectedDate="{Binding EditCourse.CourseStartDate}" Style="{StaticResource FormDatePicker}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="End Date" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                            <DatePicker SelectedDate="{Binding EditCourse.CourseEndDate}" Style="{StaticResource FormDatePicker}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelEditCommand}" Margin="0,0,8,0" Padding="16,8"/>
+                        <Button Content="Update Course" Style="{StaticResource PrimaryButton}" Command="{Binding SaveEditCommand}" Padding="16,8"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+    </Grid>
+</UserControl>
