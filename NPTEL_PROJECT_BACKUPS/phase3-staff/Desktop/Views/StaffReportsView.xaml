@@ -1,0 +1,170 @@
+<UserControl x:Class="NPTELManagement.Desktop.Views.StaffReportsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:common="clr-namespace:NPTELManagement.Desktop.Common"
+             mc:Ignorable="d" 
+             d:DesignHeight="800" d:DesignWidth="1100"
+             Background="{StaticResource BackgroundBrush}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <common:InverseBooleanToVisibilityConverter x:Key="InvBoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid Margin="32">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 1. Header & Report Selection -->
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="ACADEMIC REPORT PREVIEW (READ-ONLY)"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource SecondaryBrush}"
+                               Margin="0,0,0,4"/>
+                    
+                    <TextBlock Text="{Binding ReportPreview.ReportTitle, TargetNullValue='Staff Report Preview'}"
+                               FontSize="22"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource PrimaryBrush}"
+                               Margin="0,0,0,8"/>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Border Background="#DBEAFE" CornerRadius="4" Padding="10,4" Margin="0,0,12,0">
+                            <TextBlock Text="{Binding ReportPreview.Department, StringFormat='Dept: {0}'}"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource ActionBrush}"/>
+                        </Border>
+
+                        <Border Background="#F1F5F9" CornerRadius="4" Padding="10,4">
+                            <TextBlock Text="{Binding ReportPreview.Year, StringFormat='Assigned Year: {0}'}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Report Type:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <ComboBox ItemsSource="{Binding ReportTypes}"
+                              SelectedItem="{Binding SelectedReportTypeDisplay, Mode=TwoWay}"
+                              Width="220" Height="36"
+                              VerticalContentAlignment="Center"
+                              Margin="0,0,12,0"/>
+                    <Button Content="↻ Refresh"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding RefreshCommand}"
+                            Height="36"
+                            Padding="14,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. Loading & Error States -->
+        <ProgressBar Grid.Row="1"
+                     IsIndeterminate="True"
+                     Height="4"
+                     Foreground="{StaticResource ActionBrush}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Margin="0,0,0,12"
+                     Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"/>
+
+        <Border Grid.Row="1"
+                Background="{StaticResource DangerLightBrush}"
+                BorderBrush="{StaticResource DangerBrush}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="16,12"
+                Margin="0,0,0,16"
+                Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="Retry" Style="{StaticResource PrimaryButton}" Command="{Binding RefreshCommand}" Padding="12,6"/>
+            </Grid>
+        </Border>
+
+        <!-- 3. Summary Info Bar -->
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="12,8" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Preview generated strictly within authorized student scope. Export to PDF/Excel will be activated in later administrative phases."
+                           FontSize="12"
+                           FontStyle="Italic"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding TotalRecords, StringFormat='Total Records: {0}'}"
+                           FontWeight="Bold"
+                           FontSize="12"
+                           Foreground="{StaticResource PrimaryBrush}"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- 4. Report Preview DataGrid -->
+        <Grid Grid.Row="3">
+            <DataGrid Style="{StaticResource ModernDataGrid}"
+                      ItemsSource="{Binding Items}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Student Name" Binding="{Binding StudentName}" FontWeight="SemiBold" Width="1.5*"/>
+                    <DataGridTextColumn Header="Register No" Binding="{Binding RegisterNumber}" Width="1.1*"/>
+                    <DataGridTextColumn Header="Dept" Binding="{Binding Department}" Width="0.6*"/>
+                    <DataGridTextColumn Header="Year" Binding="{Binding Year}" Width="0.5*"/>
+                    <DataGridTextColumn Header="Class" Binding="{Binding ClassSection}" Width="0.6*"/>
+                    <DataGridTextColumn Header="Course Name" Binding="{Binding CourseName}" Width="2*"/>
+                    <DataGridTextColumn Header="Course Code" Binding="{Binding CourseCode}" Width="*"/>
+                    <DataGridTextColumn Header="Reg Status" Binding="{Binding RegistrationStatus}" Width="*"/>
+                    <DataGridTextColumn Header="Exam Status" Binding="{Binding ExamStatus}" Width="*"/>
+                    <DataGridTextColumn Header="Certificate" Binding="{Binding CertificateStatus}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Empty State Overlay -->
+            <Border Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="40"
+                    Visibility="{Binding HasNoRecords, Converter={StaticResource BoolToVis}}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="No records to display for this report."
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,6"/>
+                    <TextBlock Text="No matching data found for the selected report within your authorized scope."
+                               FontSize="13"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+    </Grid>
+</UserControl>
