@@ -1,0 +1,36 @@
+# Build and development artifacts
+**/bin/
+**/obj/
+.vs/
+.vscode/
+.idea/
+
+# Source control and backup directories
+.git/
+.gitignore
+NPTEL_PROJECT_BACKUPS/
+NPTL_PROJECT_BACKUPS/
+
+# Secrets and local environment files
+*.env
+*.env.*
+*.pfx
+*.pem
+*.key
+*.crt
+*.cert
+secrets.json
+appsettings.*.local.json
+appsettings.Development.json
+
+# Desktop WPF Client & Documentation (not required in backend container)
+Desktop/
+Documentation/
+*.md
+*.ps1
+
+# Temporary OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store

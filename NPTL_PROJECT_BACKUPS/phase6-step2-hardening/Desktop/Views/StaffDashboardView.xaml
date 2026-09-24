@@ -1,0 +1,247 @@
+<UserControl x:Class="NPTELManagement.Desktop.Views.StaffDashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:common="clr-namespace:NPTELManagement.Desktop.Common"
+             mc:Ignorable="d" 
+             d:DesignHeight="800" d:DesignWidth="1100"
+             Background="{StaticResource BackgroundBrush}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <common:InverseBooleanToVisibilityConverter x:Key="InvBoolToVis"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="32">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- 1. Header & Staff Assignment Summary -->
+            <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="STAFF PORTAL &amp; MENTOR MONITORING"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource SecondaryBrush}"
+                                   Margin="0,0,0,4"/>
+                        
+                        <TextBlock Text="{Binding StaffDisplayName, StringFormat='Welcome, {0}'}"
+                                   FontSize="22"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource PrimaryBrush}"
+                                   Margin="0,0,0,8"/>
+
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="#F1F5F9" CornerRadius="4" Padding="10,4" Margin="0,0,12,0">
+                                <TextBlock Text="{Binding StaffDisplayId, StringFormat='Faculty ID: {0}'}"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </Border>
+
+                            <Border Background="#F1F5F9" CornerRadius="4" Padding="10,4" Margin="0,0,12,0">
+                                <TextBlock Text="{Binding StaffDisplayDepartment, StringFormat='Dept: {0}'}"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                            </Border>
+
+                            <Border Background="#DBEAFE" CornerRadius="4" Padding="10,4">
+                                <TextBlock Text="{Binding StaffDisplayAssignedScope, StringFormat='Assigned Scope: {0}'}"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           Foreground="{StaticResource ActionBrush}"/>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="↻ Refresh Metrics"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding RefreshCommand}"
+                                Margin="0,0,10,0"/>
+                        <Button Content="👥 View Students"
+                                Style="{StaticResource PrimaryButton}"
+                                Command="{Binding NavigateStudentsCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- 2. Loading & Error States -->
+            <ProgressBar Grid.Row="1"
+                         IsIndeterminate="True"
+                         Height="4"
+                         Foreground="{StaticResource ActionBrush}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Margin="0,0,0,12"
+                         Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}"/>
+
+            <Border Grid.Row="1"
+                    Background="{StaticResource DangerLightBrush}"
+                    BorderBrush="{StaticResource DangerBrush}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="16,12"
+                    Margin="0,0,0,16"
+                    Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Retry" Style="{StaticResource PrimaryButton}" Command="{Binding RefreshCommand}" Padding="12,6"/>
+                </Grid>
+            </Border>
+
+            <!-- 3. KPI Metrics Cards (Row 1) -->
+            <Grid Grid.Row="2" Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Total Students -->
+                <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,12,0" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="TOTAL STUDENTS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding TotalStudents}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,6,0,4"/>
+                        <TextBlock Text="In your assigned scope" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Registered Students -->
+                <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="0,0,12,0" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="REGISTERED" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding RegisteredStudents}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource ActionBrush}" Margin="0,6,0,4"/>
+                        <TextBlock Text="With active NPTEL course" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- In Progress Courses -->
+                <Border Grid.Column="2" Style="{StaticResource CardStyle}" Margin="0,0,12,0" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="IN PROGRESS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding InProgressCourses}" FontSize="28" FontWeight="Bold" Foreground="#D97706" Margin="0,6,0,4"/>
+                        <TextBlock Text="Active course enrollments" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Completed Courses -->
+                <Border Grid.Column="3" Style="{StaticResource CardStyle}" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="COURSE COMPLETED" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding CompletedCourses}" FontSize="28" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,4"/>
+                        <TextBlock Text="Curriculum finished" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- 4. KPI Metrics Cards (Row 2: Exam & Certificates) -->
+            <Grid Grid.Row="3" Margin="0,0,0,24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Exam Pending -->
+                <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,12,0" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="EXAM PENDING" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding ExamPending}" FontSize="26" FontWeight="Bold" Foreground="#EA580C" Margin="0,6,0,4"/>
+                        <TextBlock Text="Application or test due" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Exam Applied -->
+                <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="0,0,12,0" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="EXAM APPLIED" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding ExamApplied}" FontSize="26" FontWeight="Bold" Foreground="{StaticResource ActionBrush}" Margin="0,6,0,4"/>
+                        <TextBlock Text="Registered with test centre" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Certificate Pending -->
+                <Border Grid.Column="2" Style="{StaticResource CardStyle}" Margin="0,0,12,0" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="CERTIFICATE PENDING" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding CertificatePending}" FontSize="26" FontWeight="Bold" Foreground="{StaticResource SecondaryBrush}" Margin="0,6,0,4"/>
+                        <TextBlock Text="Pending submission/approval" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Certificate Verified -->
+                <Border Grid.Column="3" Style="{StaticResource CardStyle}" Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="CERTIFICATE VERIFIED" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <TextBlock Text="{Binding CertificateVerified}" FontSize="26" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,4"/>
+                        <TextBlock Text="Officially approved records" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- 5. Quick Actions & Overview Cards -->
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Student Management Quick Action -->
+                <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,12,0" Padding="24">
+                    <StackPanel>
+                        <TextBlock Text="👥 Authorized Student Directory" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Monitor course progress, examination schedules, and certificate statuses for students assigned to your department and year."
+                                   TextWrapping="Wrap"
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,0,0,16"/>
+                        <Button Content="Go to Student List →"
+                                Style="{StaticResource PrimaryButton}"
+                                Command="{Binding NavigateStudentsCommand}"
+                                HorizontalAlignment="Left"
+                                Padding="16,8"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Reports Preview Quick Action -->
+                <Border Grid.Column="1" Style="{StaticResource CardStyle}" Margin="12,0,0,0" Padding="24">
+                    <StackPanel>
+                        <TextBlock Text="📊 Department Reports Preview" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Generate real-time preview tables for student registrations, course status breakdowns, exam readiness, and certificate audit summaries."
+                                   TextWrapping="Wrap"
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,0,0,16"/>
+                        <Button Content="Preview Reports →"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding NavigateReportsCommand}"
+                                HorizontalAlignment="Left"
+                                Padding="16,8"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+        </Grid>
+    </ScrollViewer>
+</UserControl>

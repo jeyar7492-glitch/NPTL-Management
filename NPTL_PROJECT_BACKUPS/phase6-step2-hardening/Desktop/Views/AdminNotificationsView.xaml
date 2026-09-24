@@ -1,0 +1,155 @@
+<UserControl x:Class="NPTELManagement.Desktop.Views.AdminNotificationsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:common="clr-namespace:NPTELManagement.Desktop.Common"
+             mc:Ignorable="d" 
+             d:DesignHeight="750" d:DesignWidth="1100"
+             Background="{StaticResource BackgroundBrush}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <common:InverseBooleanToVisibilityConverter x:Key="InvBoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 1. Header & Actions -->
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="ADMINISTRATION MODULE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource SecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="Broadcast Dispatch &amp; Notification Engine" FontSize="22" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
+                    <TextBlock Text="{Binding TotalCount, StringFormat='Total Dispatched Notifications: {0}'}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="✉ Compose Broadcast" Style="{StaticResource PrimaryButton}" Command="{Binding OpenComposeDialogCommand}" Margin="0,0,8,0" Padding="14,8"/>
+                    <Button Content="⚡ Trigger Rules Engine" Style="{StaticResource SecondaryButton}" Command="{Binding TriggerRulesCommand}" Margin="0,0,8,0" Padding="12,8"/>
+                    <Button Content="🗑 Delete" Style="{StaticResource SecondaryButton}" Command="{Binding DeleteNotificationCommand}" Margin="0,0,8,0" Padding="12,8"/>
+                    <Button Content="↻ Refresh" Style="{StaticResource SecondaryButton}" Command="{Binding RefreshCommand}" Padding="12,8"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. Search Bar -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16" Padding="16,12">
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Margin="0,0,16,0">
+                    <TextBlock Text="Search (Title / Recipient / Message)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="320" Style="{StaticResource FormTextBox}"/>
+                </StackPanel>
+            </WrapPanel>
+        </Border>
+
+        <!-- 3. Notifications DataGrid -->
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="0">
+            <Grid>
+                <DataGrid ItemsSource="{Binding Notifications}"
+                          SelectedItem="{Binding SelectedNotification}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          GridLinesVisibility="Horizontal"
+                          HeadersVisibility="Column"
+                          BorderThickness="0"
+                          Background="White"
+                          RowHeight="42"
+                          SelectionMode="Single">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Recipient" Binding="{Binding RecipientName}" Width="160" FontWeight="Bold"/>
+                        <DataGridTextColumn Header="Subject / Title" Binding="{Binding Title}" Width="220" FontWeight="SemiBold"/>
+                        <DataGridTextColumn Header="Message Body" Binding="{Binding Message}" Width="*"/>
+                        <DataGridTemplateColumn Header="Read State" Width="100">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Left"
+                                            Background="{Binding IsRead, Converter={StaticResource BoolToVis}, ConverterParameter='read'}">
+                                        <TextBlock Text="{Binding IsRead, StringFormat='Read'}" FontSize="11" FontWeight="SemiBold" Foreground="White"/>
+                                    </Border>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Sent Timestamp" Binding="{Binding CreatedAt, StringFormat='dd MMM yyyy HH:mm'}" Width="140"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <Grid Background="#66FFFFFF" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="Loading notifications..." HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- 4. Status Bar -->
+        <StackPanel Grid.Row="3" Margin="4,12,4,0" Orientation="Horizontal">
+            <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource SecondaryBrush}" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold"/>
+        </StackPanel>
+
+        <!-- Compose Broadcast Modal Overlay -->
+        <Grid Grid.RowSpan="4" Background="#80000000" Visibility="{Binding IsComposeDialogOpen, Converter={StaticResource BoolToVis}}">
+            <Border Style="{StaticResource CardStyle}" Width="520" VerticalAlignment="Center" HorizontalAlignment="Center" Padding="24">
+                <StackPanel>
+                    <TextBlock Text="Compose Announcement / Broadcast" FontSize="18" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,16"/>
+
+                    <TextBlock Text="Target Audience" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <ComboBox SelectedValue="{Binding NewNotification.TargetType, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource FormComboBox}" Margin="0,0,0,12">
+                        <ComboBoxItem Content="AllDepartment"/>
+                        <ComboBoxItem Content="Year"/>
+                        <ComboBoxItem Content="Class"/>
+                        <ComboBoxItem Content="Individual"/>
+                    </ComboBox>
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Target Year (if Year/Class)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                            <ComboBox SelectedValue="{Binding NewNotification.Year, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource FormComboBox}">
+                                <ComboBoxItem Content="1"/>
+                                <ComboBoxItem Content="2"/>
+                                <ComboBoxItem Content="3"/>
+                                <ComboBoxItem Content="4"/>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Section (if Class)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding NewNotification.ClassSection, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBox}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Margin="0,0,0,12">
+                        <TextBlock Text="Recipient Reg Number (if Individual)" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding IndividualRegisterNumber, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBox}"/>
+                    </StackPanel>
+
+                    <TextBlock Text="Title" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding NewNotification.Title, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBox}" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Message Body" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding NewNotification.Message, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource FormTextBox}" Height="90" AcceptsReturn="True" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Style="{StaticResource SecondaryButton}" Command="{Binding CancelComposeCommand}" Margin="0,0,8,0" Padding="16,8"/>
+                        <Button Content="Dispatch Notification" Style="{StaticResource PrimaryButton}" Command="{Binding SendNotificationCommand}" Padding="16,8"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+    </Grid>
+</UserControl>

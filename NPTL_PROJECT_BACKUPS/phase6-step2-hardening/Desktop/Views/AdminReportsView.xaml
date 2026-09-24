@@ -1,0 +1,126 @@
+<UserControl x:Class="NPTELManagement.Desktop.Views.AdminReportsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:common="clr-namespace:NPTELManagement.Desktop.Common"
+             mc:Ignorable="d" 
+             d:DesignHeight="750" d:DesignWidth="1100"
+             Background="{StaticResource BackgroundBrush}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <common:InverseBooleanToVisibilityConverter x:Key="InvBoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 1. Header & Export Buttons -->
+        <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="ADMINISTRATION MODULE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource SecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBlock Text="Institutional Reports &amp; Accreditation Exports" FontSize="22" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"/>
+                    <TextBlock Text="{Binding Preview.ReportTitle, FallbackValue='Select report criteria to generate preview'}" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="📄 Export PDF" Style="{StaticResource PrimaryButton}" Command="{Binding ExportPdfCommand}" Margin="0,0,8,0" Padding="14,8"/>
+                    <Button Content="📊 Export Excel" Style="{StaticResource SecondaryButton}" Command="{Binding ExportXlsxCommand}" Margin="0,0,8,0" Padding="14,8"/>
+                    <Button Content="📑 Export CSV" Style="{StaticResource SecondaryButton}" Command="{Binding ExportCsvCommand}" Margin="0,0,8,0" Padding="14,8"/>
+                    <Button Content="↻ Refresh Preview" Style="{StaticResource SecondaryButton}" Command="{Binding GeneratePreviewCommand}" Padding="12,8"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. Report Selector & Filter Parameters -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16" Padding="16,12">
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel Margin="0,0,16,8">
+                    <TextBlock Text="Report Domain" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <ComboBox SelectedValue="{Binding SelectedReportType, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Tag" Width="200" Style="{StaticResource FormComboBox}">
+                        <ComboBoxItem Content="Student Registration" Tag="student-registration"/>
+                        <ComboBoxItem Content="Course Enrollment Status" Tag="course-status"/>
+                        <ComboBoxItem Content="Exam Application &amp; Scores" Tag="exam-status"/>
+                        <ComboBoxItem Content="Certificate Verification" Tag="certificate-status"/>
+                        <ComboBoxItem Content="Year-Wise Academic Summary" Tag="year-summary"/>
+                        <ComboBoxItem Content="Class-Wise Academic Summary" Tag="class-summary"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,16,8">
+                    <TextBlock Text="Year" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <ComboBox SelectedValue="{Binding SelectedYear, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Width="90" Style="{StaticResource FormComboBox}">
+                        <ComboBoxItem Content="All"/>
+                        <ComboBoxItem Content="1"/>
+                        <ComboBoxItem Content="2"/>
+                        <ComboBoxItem Content="3"/>
+                        <ComboBoxItem Content="4"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,16,8">
+                    <TextBlock Text="Class / Sec" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <ComboBox SelectedValue="{Binding SelectedClass, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Width="90" Style="{StaticResource FormComboBox}">
+                        <ComboBoxItem Content="All"/>
+                        <ComboBoxItem Content="A"/>
+                        <ComboBoxItem Content="B"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Margin="0,0,16,8">
+                    <TextBlock Text="Keyword Filter" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Width="200" Style="{StaticResource FormTextBox}"/>
+                </StackPanel>
+            </WrapPanel>
+        </Border>
+
+        <!-- 3. Report Preview DataGrid -->
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="0">
+            <Grid>
+                <DataGrid ItemsSource="{Binding Items}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          GridLinesVisibility="Horizontal"
+                          HeadersVisibility="Column"
+                          BorderThickness="0"
+                          Background="White"
+                          RowHeight="40">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Reg No" Binding="{Binding RegisterNumber}" Width="120" FontWeight="Bold"/>
+                        <DataGridTextColumn Header="Student Name" Binding="{Binding StudentName}" Width="160"/>
+                        <DataGridTextColumn Header="Class / Sec" Binding="{Binding ClassSection, StringFormat='Year {0}'}" Width="90"/>
+                        <DataGridTextColumn Header="Course Code" Binding="{Binding CourseCode}" Width="110"/>
+                        <DataGridTextColumn Header="Course Title" Binding="{Binding CourseName}" Width="*"/>
+                        <DataGridTextColumn Header="Reg Status" Binding="{Binding RegistrationStatus}" Width="100"/>
+                        <DataGridTextColumn Header="Exam Status" Binding="{Binding ExamStatus}" Width="100"/>
+                        <DataGridTextColumn Header="Score" Binding="{Binding Score}" Width="80"/>
+                        <DataGridTextColumn Header="Certificate" Binding="{Binding VerificationStatus}" Width="110"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <Grid Background="#66FFFFFF" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
+                    <TextBlock Text="Compiling report preview..." HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- 4. Status Bar -->
+        <StackPanel Grid.Row="3" Margin="4,12,4,0" Orientation="Horizontal">
+            <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource SecondaryBrush}" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold"/>
+        </StackPanel>
+
+    </Grid>
+</UserControl>
