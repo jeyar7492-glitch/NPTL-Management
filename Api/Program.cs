@@ -196,6 +196,22 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// Configure Forwarded Headers for reverse-proxy environments (e.g. Render, Docker, Cloud hosting)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor |
+                               Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+// Support cloud provider dynamic port assignment (e.g., Render sets $PORT)
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(renderPort))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{renderPort}");
+}
+
 var app = builder.Build();
 
 // Seed initial development/test records if in-memory database or explicit --seed-db flag
@@ -209,6 +225,9 @@ if (app.Configuration.GetValue<bool>("USE_INMEMORY_DB") || args.Contains("--seed
 
 // Global Exception Handling Middleware
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// Process forwarded headers before HTTPS redirection to prevent redirect loops behind reverse proxies
+app.UseForwardedHeaders();
 
 // Enforce HTTPS redirection and HSTS in non-development environments
 if (!app.Environment.IsDevelopment())
