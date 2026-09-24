@@ -492,7 +492,7 @@ try {
     # Verify Baseline Records Created
     $examRecord = (Invoke-RestMethod -Uri "http://127.0.0.1:5000/api/v1/admin/exams/registration/$newRegId" -Method Get -Headers $adminHeaders).data
     $certRecord = (Invoke-RestMethod -Uri "http://127.0.0.1:5000/api/v1/admin/certificates/registration/$newRegId" -Method Get -Headers $adminHeaders).data
-    $baselineOk = ($examRecord -ne $null -and $certRecord -ne $null)
+    $baselineOk = ($null -ne $examRecord -and $null -ne $certRecord)
     Report-Result "Automatic Baseline Records Created (Exam & Certificate Entities)" $baselineOk "Exam Status: $($examRecord.examApplicationStatus), Cert Status: $($certRecord.verifiedStatus)"
 
     # Advance Registration Status
@@ -611,7 +611,7 @@ try {
         try {
             $certUploadResp = Invoke-RestMethod -Uri "http://127.0.0.1:5000/api/v1/admin/certificates/registration/$newRegId/upload" -Method Post -Body $fullBodyBytes -ContentType $contentType -Headers $adminHeaders -ErrorAction Stop
             $uploadedCert = $certUploadResp.data
-            if ($uploadedCert -ne $null -and $uploadedCert.storagePath -match '^certificates\/') {
+            if ($null -ne $uploadedCert -and $uploadedCert.storagePath -match '^certificates\/') {
                 $check1Passed = $true
                 Report-Result "1. Real Cloud Upload to Private Bucket" $true "Storage Path in DB: $($uploadedCert.storagePath)"
             } else {
@@ -662,7 +662,7 @@ try {
             Report-Result "3. Database Stores Only Storage Object Path" $check3Passed "Path stored: $($uploadedCert.storagePath)"
 
             # 4. PDF binary is not stored in DB
-            $check4Passed = ($uploadedCert.PSObject.Properties['fileBytes'] -eq $null -and $uploadedCert.PSObject.Properties['content'] -eq $null -and $uploadedCert.PSObject.Properties['binaryData'] -eq $null)
+            $check4Passed = ($null -eq $uploadedCert.PSObject.Properties['fileBytes'] -and $null -eq $uploadedCert.PSObject.Properties['content'] -and $null -eq $uploadedCert.PSObject.Properties['binaryData'])
             Report-Result "4. Zero Binary Bytes Stored in Database Record" $check4Passed "Only storagePath metadata stored in DB"
 
             # 5. Unauthenticated direct object access fails
@@ -686,7 +686,7 @@ try {
                         $downloadResp = Invoke-WebRequest -Uri $adminAccess.accessUrl -Method Get -UseBasicParsing -ErrorAction Stop
                         $downloadedBytes = $downloadResp.Content
                         $isPdfHeader = $false
-                        if ($downloadedBytes -ne $null -and $downloadedBytes.Length -ge 4) {
+                        if ($null -ne $downloadedBytes -and $downloadedBytes.Length -ge 4) {
                             if ($downloadedBytes -is [byte[]]) {
                                 $isPdfHeader = ([System.Text.Encoding]::ASCII.GetString($downloadedBytes[0..3]) -eq "%PDF")
                             } else {
@@ -764,7 +764,7 @@ try {
             try {
                 $reuploadResp = Invoke-RestMethod -Uri "http://127.0.0.1:5000/api/v1/admin/certificates/registration/$newRegId/upload" -Method Post -Body $fullBodyBytes -ContentType $contentType -Headers $adminHeaders -ErrorAction Stop
                 $reuploadedCert = $reuploadResp.data
-                $check11Passed = ($reuploadedCert -ne $null -and $reuploadedCert.storagePath -eq $uploadedCert.storagePath)
+                $check11Passed = ($null -ne $reuploadedCert -and $reuploadedCert.storagePath -eq $uploadedCert.storagePath)
                 Report-Result "11. Replacement Upload Updates Correct Object Path" $check11Passed "Object path preserved and overwritten in private bucket: $($reuploadedCert.storagePath)"
             } catch {
                 $safeErr = Get-SafeErrorMessage $_ $supabaseServiceKey

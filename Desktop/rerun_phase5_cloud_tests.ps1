@@ -299,7 +299,7 @@ try {
                 $downloadedBytes = $downloadResp.Content
 
                 $isPdf = $false
-                if ($downloadedBytes -ne $null -and $downloadedBytes.Length -ge 4) {
+                if ($null -ne $downloadedBytes -and $downloadedBytes.Length -ge 4) {
                     if ($downloadedBytes -is [byte[]]) {
                         $isPdf = ([System.Text.Encoding]::ASCII.GetString($downloadedBytes[0..3]) -eq "%PDF")
                     } else {

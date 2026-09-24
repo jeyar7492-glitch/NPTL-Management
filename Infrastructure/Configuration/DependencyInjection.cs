@@ -63,8 +63,11 @@ public static class DependencyInjection
         }
         else
         {
-            var connectionString = configuration.GetConnectionString("DefaultConnection") 
-                                   ?? configuration["SUPABASE_DB_CONNECTION"];
+            var connectionString = configuration["SUPABASE_DB_CONNECTION"];
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                connectionString = configuration.GetConnectionString("DefaultConnection");
+            }
 
             if (!string.IsNullOrWhiteSpace(connectionString))
             {
