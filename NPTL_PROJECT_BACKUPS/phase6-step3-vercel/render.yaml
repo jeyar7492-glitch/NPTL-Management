@@ -1,0 +1,32 @@
+# ==============================================================================
+# NPTEL Management System - Render Web Service Blueprint
+# Reproducible, production-ready specification with zero exposed secrets.
+# Secrets are declared with `sync: false` to be configured in Render dashboard.
+# ==============================================================================
+services:
+  - type: web
+    name: nptel-management-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    healthCheckPath: /api/v1/health/live
+    autoDeploy: false
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: JWT_ISSUER
+        value: NPTELManagementApi
+      - key: JWT_AUDIENCE
+        value: NPTELManagementClient
+      # Sensitive secrets below: configure securely in Render Service Settings
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_DB_CONNECTION
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_SERVICE_ROLE_KEY
+        sync: false
