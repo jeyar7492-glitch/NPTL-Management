@@ -587,7 +587,7 @@ public class AdminController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadCertificate(
         [FromRoute] Guid registrationId,
-        [FromForm] IFormFile file,
+        IFormFile file,
         CancellationToken cancellationToken)
     {
         if (file == null || file.Length == 0)
