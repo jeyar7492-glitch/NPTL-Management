@@ -5,6 +5,7 @@ using NPTELManagement.Core.Interfaces;
 using NPTELManagement.Infrastructure.Authentication;
 using NPTELManagement.Infrastructure.Data;
 using NPTELManagement.Infrastructure.Repositories;
+using Npgsql;
 
 namespace NPTELManagement.Infrastructure.Configuration;
 
@@ -63,11 +64,13 @@ public static class DependencyInjection
         }
         else
         {
-            var connectionString = configuration["SUPABASE_DB_CONNECTION"];
-            if (string.IsNullOrWhiteSpace(connectionString))
+            var rawConnectionString = configuration["SUPABASE_DB_CONNECTION"];
+            if (string.IsNullOrWhiteSpace(rawConnectionString))
             {
-                connectionString = configuration.GetConnectionString("DefaultConnection");
+                rawConnectionString = configuration.GetConnectionString("DefaultConnection");
             }
+
+            var connectionString = NormalizeDatabaseConnectionString(rawConnectionString);
 
             if (!string.IsNullOrWhiteSpace(connectionString))
             {
@@ -158,4 +161,122 @@ public static class DependencyInjection
 
         return services;
     }
+
+#pragma warning disable CS0618 // Obsolete Npgsql TrustServerCertificate property retained for backwards compatibility
+    /// <summary>
+    /// Normalizes a PostgreSQL database connection string or URI into a standard Npgsql key/value connection string.
+    /// Supports:
+    /// 1. Standard Npgsql key/value pairs (e.g. Host=...;Port=5432;Database=postgres;...)
+    /// 2. Supabase / PostgreSQL URI format (e.g. postgresql://user:pass@host:5432/dbname or postgres://...)
+    /// 3. Safely URL-decodes username and password.
+    /// 4. Preserves Host, Port, Database, Username, Password, SslMode=Require, TrustServerCertificate=true.
+    /// 5. Never logs or leaks passwords or credentials in exceptions.
+    /// </summary>
+    public static string? NormalizeDatabaseConnectionString(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var trimmed = raw.Trim().Trim('"', '\'');
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return null;
+        }
+
+        if (trimmed.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) || string.IsNullOrWhiteSpace(uri.Host))
+                {
+                    throw new InvalidOperationException("Invalid PostgreSQL database connection configuration.");
+                }
+
+                var userInfo = uri.UserInfo;
+                string username = userInfo;
+                string password = string.Empty;
+
+                var colonIdx = userInfo.IndexOf(':');
+                if (colonIdx >= 0)
+                {
+                    username = userInfo.Substring(0, colonIdx);
+                    password = userInfo.Substring(colonIdx + 1);
+                }
+
+                username = Uri.UnescapeDataString(username);
+                password = Uri.UnescapeDataString(password);
+
+                var dbName = uri.AbsolutePath.TrimStart('/');
+                if (string.IsNullOrWhiteSpace(dbName))
+                {
+                    dbName = "postgres";
+                }
+
+                var builder = new NpgsqlConnectionStringBuilder
+                {
+                    Host = uri.Host,
+                    Port = uri.Port > 0 ? uri.Port : 5432,
+                    Database = dbName,
+                    Username = username,
+                    Password = password,
+                    SslMode = SslMode.Require,
+                    TrustServerCertificate = true
+                };
+
+                if (!string.IsNullOrWhiteSpace(uri.Query))
+                {
+                    var query = uri.Query.TrimStart('?');
+                    var pairs = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var pair in pairs)
+                    {
+                        var kv = pair.Split('=', 2);
+                        var key = Uri.UnescapeDataString(kv[0]).ToLowerInvariant();
+                        var val = kv.Length > 1 ? Uri.UnescapeDataString(kv[1]) : string.Empty;
+
+                        if (key == "sslmode" && Enum.TryParse<SslMode>(val, true, out var parsedSslMode))
+                        {
+                            builder.SslMode = parsedSslMode;
+                        }
+                        else if (key == "trustservercertificate" || key == "trust_server_certificate")
+                        {
+                            if (bool.TryParse(val, out var trust))
+                            {
+                                builder.TrustServerCertificate = trust;
+                            }
+                        }
+                    }
+                }
+
+                return builder.ConnectionString;
+            }
+            catch (Exception ex) when (ex is not InvalidOperationException)
+            {
+                throw new InvalidOperationException("Invalid PostgreSQL database connection configuration.");
+            }
+        }
+        else
+        {
+            try
+            {
+                var builder = new NpgsqlConnectionStringBuilder(trimmed);
+                if (!builder.ContainsKey("SSL Mode") && !builder.ContainsKey("SslMode"))
+                {
+                    builder.SslMode = SslMode.Require;
+                }
+                if (!builder.ContainsKey("Trust Server Certificate") && !builder.ContainsKey("TrustServerCertificate"))
+                {
+                    builder.TrustServerCertificate = true;
+                }
+                return builder.ConnectionString;
+            }
+            catch (Exception)
+            {
+                throw new InvalidOperationException("Invalid PostgreSQL database connection configuration.");
+            }
+        }
+    }
+#pragma warning restore CS0618
 }
