@@ -63,6 +63,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Department).HasColumnName("department").HasMaxLength(50).IsRequired();
             entity.Property(e => e.ClassSection).HasColumnName("class_section").HasMaxLength(50);
             entity.Property(e => e.Year).HasColumnName("year").IsRequired();
+            entity.Property(e => e.Semester).HasColumnName("semester").IsRequired();
+            entity.Property(e => e.AcademicYear).HasColumnName("academic_year").HasMaxLength(20);
             entity.Property(e => e.Batch).HasColumnName("batch").HasMaxLength(50);
             entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(255);
             entity.Property(e => e.Phone).HasColumnName("phone").HasMaxLength(20);
@@ -227,6 +229,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Status).HasColumnName("exam_status").HasMaxLength(50);
             entity.Property(e => e.Score).HasColumnName("score").HasPrecision(5, 2);
             entity.Property(e => e.PassStatus).HasColumnName("pass_status").HasMaxLength(50);
+            entity.Property(e => e.LastResultReminderDate).HasColumnName("last_result_reminder_date").HasColumnType("timestamp with time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
 
             entity.HasOne(e => e.Registration)
