@@ -1,7 +1,7 @@
 -- PWA student account fields + automatic result reminder tracking
 ALTER TABLE students
     ADD COLUMN IF NOT EXISTS semester integer NOT NULL DEFAULT 1,
-    ADD COLUMN IF NOT EXISTS academic_year varchar(20);
+    ADD COLUMN IF NOT EXISTS academic_year varchar(20) NOT NULL DEFAULT '2026-27';
 
 ALTER TABLE exam_status
     ADD COLUMN IF NOT EXISTS last_result_reminder_date timestamptz;
