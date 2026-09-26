@@ -572,7 +572,7 @@
       let meta = [];
       if (type.includes("student")) {
         title = item.name || item.studentName || "Student";
-        meta = [item.registerNumber, item.department, item.classSection, item.year ? "Year " + item.year : null].filter(Boolean);
+        meta = [item.registerNumber, item.department, item.classSection, item.year ? "Year " + item.year : null, item.semester ? "Sem " + item.semester : null, item.academicYear].filter(Boolean);
       } else if (type === "staff") {
         title = item.staffName || "Staff";
         meta = [item.staffIdentifier, item.department, item.assignedYear ? "Year " + item.assignedYear : null, item.assignedClass ? "Class " + item.assignedClass : null].filter(Boolean);
@@ -873,6 +873,7 @@
         message.textContent = "Student account created. Login: " + registerNumber + " | Temporary password: Student@Nptel2026";
         state.cache.delete("/api/v1/admin/students?page=1&pageSize=50");
         await loadAdminStudents(true);
+        $("welcomeBanner").innerHTML = banner("Student account created", "Login ID: " + registerNumber + " · Temporary password: Student@Nptel2026");
       } catch (err) {
         message.className = "form-message";
         message.textContent = err.message || "Student creation failed.";
@@ -908,6 +909,7 @@
         message.textContent = "Staff account created. Login: " + staffIdentifier + " | Temporary password: Staff@Nptel2026";
         state.cache.delete("/api/v1/admin/staff?page=1&pageSize=50");
         await loadAdminStaff(true);
+        $("welcomeBanner").innerHTML = banner("Staff account created", "Login ID: " + staffIdentifier + " · Temporary password: Staff@Nptel2026");
       } catch (err) {
         message.className = "form-message";
         message.textContent = err.message || "Staff creation failed.";
