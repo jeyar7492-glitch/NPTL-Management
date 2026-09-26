@@ -93,6 +93,10 @@ public class StaffReportItemDto
     public string RegistrationStatus { get; set; } = string.Empty;
     public string ExamStatus { get; set; } = string.Empty;
     public string CertificateStatus { get; set; } = string.Empty;
+    public string? CertificateNumber { get; set; }
+    public decimal? CertificateScore { get; set; }
+    public string? CertificatePassStatus { get; set; }
+    public string? CertificateSubmittedDate { get; set; }
 }
 
 public class StaffReportPreviewDto
