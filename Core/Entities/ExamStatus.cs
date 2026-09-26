@@ -12,6 +12,7 @@ public class ExamStatus
     public string? Status { get; set; } = "NotStarted"; // NotStarted, Scheduled, Completed (mapped to column exam_status)
     public decimal? Score { get; set; }
     public string? PassStatus { get; set; }
+    public DateTime? LastResultReminderDate { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties
