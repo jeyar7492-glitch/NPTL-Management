@@ -14,11 +14,11 @@ public interface IAdminCertificateService
         long fileLength,
         Guid? adminUserId,
         string? ipAddress,
+        CancellationToken cancellationToken = default,
         string? certificateNumber = null,
         decimal? score = null,
         string? passStatus = null,
-        DateTime? issuedDate = null,
-        CancellationToken cancellationToken = default);
+        DateTime? issuedDate = null);
     Task<AdminCertificateDto> UpdateCertificateStatusAsync(Guid registrationId, UpdateCertificateStatusDto dto, Guid? adminUserId, string? ipAddress, CancellationToken cancellationToken = default);
     Task<CertificateAccessResponseDto> GetCertificateAccessAsync(Guid certificateId, Guid requesterUserId, string requesterRole, CancellationToken cancellationToken = default);
 }
