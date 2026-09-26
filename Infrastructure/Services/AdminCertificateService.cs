@@ -123,6 +123,9 @@ public class AdminCertificateService : IAdminCertificateService
             CourseName = c.Registration?.Course?.CourseName ?? string.Empty,
             CourseCode = c.Registration?.Course?.CourseCode ?? string.Empty,
             StoragePath = c.StoragePath,
+            CertificateNumber = c.CertificateNumber,
+            Score = c.Score,
+            PassStatus = c.PassStatus,
             VerifiedStatus = c.VerifiedStatus.ToString(),
             SubmittedDate = c.SubmittedDate,
             VerifiedDate = c.VerifiedDate,
@@ -138,7 +141,11 @@ public class AdminCertificateService : IAdminCertificateService
         string contentType, 
         long fileLength, 
         Guid? adminUserId, 
-        string? ipAddress, 
+        string? ipAddress,
+        string? certificateNumber = null,
+        decimal? score = null,
+        string? passStatus = null,
+        DateTime? issuedDate = null,
         CancellationToken cancellationToken = default)
     {
         // 1. Validation
@@ -213,6 +220,10 @@ public class AdminCertificateService : IAdminCertificateService
 
         // 4. Update DB entity with storage path only (never binary)
         cert.StoragePath = $"{BUCKET_NAME}/{objectPath}";
+        cert.CertificateNumber = string.IsNullOrWhiteSpace(certificateNumber) ? cert.CertificateNumber : certificateNumber.Trim();
+        cert.Score = score ?? cert.Score;
+        cert.PassStatus = string.IsNullOrWhiteSpace(passStatus) ? cert.PassStatus : passStatus.Trim();
+        cert.IssuedDate = issuedDate ?? cert.IssuedDate;
         cert.SubmittedDate = DateTime.UtcNow;
         cert.VerifiedStatus = CertificateStatus.Submitted;
         cert.UpdatedAt = DateTime.UtcNow;
@@ -239,6 +250,9 @@ public class AdminCertificateService : IAdminCertificateService
             CourseName = registration.Course?.CourseName ?? string.Empty,
             CourseCode = registration.Course?.CourseCode ?? string.Empty,
             StoragePath = cert.StoragePath,
+            CertificateNumber = cert.CertificateNumber,
+            Score = cert.Score,
+            PassStatus = cert.PassStatus,
             VerifiedStatus = cert.VerifiedStatus.ToString(),
             SubmittedDate = cert.SubmittedDate,
             VerifiedDate = cert.VerifiedDate,
