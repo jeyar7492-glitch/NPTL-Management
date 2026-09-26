@@ -7,10 +7,16 @@ public class Certificate
     public Guid CertificateId { get; set; } = Guid.NewGuid();
     public Guid RegistrationId { get; set; }
     public string? StoragePath { get; set; }
+    public string? CertificateNumber { get; set; }
+    public decimal? Score { get; set; }
+    public string? PassStatus { get; set; }
     public DateTime? SubmittedDate { get; set; }
     public DateTime? IssuedDate { get; set; }
     public DateTime? VerifiedDate { get; set; }
     public DateTime? ReceivedDate { get; set; }
+    public bool ReminderEnabled { get; set; }
+    public DateTime? ReminderDate { get; set; }
+    public DateTime? LastReminderSentDate { get; set; }
     public CertificateStatus VerifiedStatus { get; set; } = CertificateStatus.Pending; // Pending, Submitted, UnderVerification, Verified, Received
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
