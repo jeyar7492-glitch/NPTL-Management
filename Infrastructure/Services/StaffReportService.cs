@@ -203,7 +203,10 @@ public class StaffReportService : IStaffReportService
                 item.CertificateScore.HasValue ? (double)item.CertificateScore.Value : null,
                 item.CertificatePassStatus ?? "", item.CertificateSubmittedDate ?? ""
             };
-            for (var col = 0; col < values.Length; col++) ws.Cell(row, col + 1).Value = values[col] ?? "";
+            for (var col = 0; col < values.Length; col++)
+            {
+                ws.Cell(row, col + 1).Value = values[col]?.ToString() ?? string.Empty;
+            }
         }
 
         ws.Columns().AdjustToContents();
