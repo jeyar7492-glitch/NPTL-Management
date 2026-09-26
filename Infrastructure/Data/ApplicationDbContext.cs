@@ -244,10 +244,16 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.RegistrationId).HasColumnName("registration_id").IsRequired();
             entity.HasIndex(e => e.RegistrationId).IsUnique();
             entity.Property(e => e.StoragePath).HasColumnName("storage_path");
+            entity.Property(e => e.CertificateNumber).HasColumnName("certificate_number").HasMaxLength(100);
+            entity.Property(e => e.Score).HasColumnName("score").HasPrecision(5, 2);
+            entity.Property(e => e.PassStatus).HasColumnName("pass_status").HasMaxLength(50);
             entity.Property(e => e.SubmittedDate).HasColumnName("submitted_date").HasColumnType("timestamp with time zone");
             entity.Property(e => e.IssuedDate).HasColumnName("issued_date").HasColumnType("timestamp with time zone");
             entity.Property(e => e.VerifiedDate).HasColumnName("verified_date").HasColumnType("timestamp with time zone");
             entity.Property(e => e.ReceivedDate).HasColumnName("received_date").HasColumnType("timestamp with time zone");
+            entity.Property(e => e.ReminderEnabled).HasColumnName("reminder_enabled").HasDefaultValue(false);
+            entity.Property(e => e.ReminderDate).HasColumnName("reminder_date").HasColumnType("timestamp with time zone");
+            entity.Property(e => e.LastReminderSentDate).HasColumnName("last_reminder_sent_date").HasColumnType("timestamp with time zone");
             entity.Property(e => e.VerifiedStatus)
                 .HasColumnName("verified_status")
                 .HasMaxLength(50)
