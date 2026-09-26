@@ -40,6 +40,21 @@ public class OfflineMockStorageService : IPrivateCloudStorageService
         return Task.FromResult(mockUrl);
     }
 
+    public bool TryGetObjectForToken(string token, out byte[] content)
+    {
+        content = Array.Empty<byte>();
+
+        if (string.IsNullOrWhiteSpace(token) ||
+            !_tokens.TryGetValue(token, out var key) ||
+            !_storage.TryGetValue(key, out var bytes))
+        {
+            return false;
+        }
+
+        content = bytes;
+        return true;
+    }
+
     public Task<bool> DeleteCertificateAsync(string bucketName, string objectPath, CancellationToken cancellationToken = default)
     {
         var key = objectPath.StartsWith($"{bucketName}/") ? objectPath : $"{bucketName}/{objectPath.TrimStart('/')}";
