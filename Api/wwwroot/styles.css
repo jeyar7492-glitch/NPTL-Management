@@ -94,3 +94,20 @@ button{cursor:pointer}
 .data-item{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
 .data-item > div:first-child{min-width:0}
 .data-meta{line-height:1.5}
+
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+.form-grid label,.certificate-box label{display:block;font-size:11px;font-weight:700;color:#475467;margin-bottom:6px}
+.form-input{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:11px;background:#fff;color:var(--text);outline:none}
+.form-input:focus{border-color:#818cf8;box-shadow:0 0 0 4px rgba(99,102,241,.1)}
+.certificate-box{margin-top:14px;padding:16px;border:1px solid var(--border);border-radius:16px;background:#fafbff}
+.box-title{font-weight:800;margin-bottom:4px}
+.upload-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:12px}
+.reminder-box{background:#f8f7ff}
+.reminder-row{display:grid;grid-template-columns:auto minmax(180px,1fr) auto;gap:10px;align-items:center;margin-top:12px}
+.switch-line{display:flex!important;align-items:center;gap:8px;white-space:nowrap}
+.switch-line input{accent-color:var(--primary)}
+.report-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+@media(max-width:760px){
+  .form-grid{grid-template-columns:1fr}
+  .upload-row,.reminder-row{grid-template-columns:1fr}
+}
