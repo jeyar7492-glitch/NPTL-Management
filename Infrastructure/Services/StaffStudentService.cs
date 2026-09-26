@@ -306,10 +306,15 @@ public class StaffStudentService : IStaffStudentService
                         CertificateId = r.Certificate.CertificateId,
                         VerifiedStatus = r.Certificate.VerifiedStatus.ToString(),
                         StoragePath = r.Certificate.StoragePath,
+                        CertificateNumber = r.Certificate.CertificateNumber,
+                        Score = r.Certificate.Score,
+                        PassStatus = r.Certificate.PassStatus,
                         SubmittedDate = r.Certificate.SubmittedDate,
                         IssuedDate = r.Certificate.IssuedDate,
                         VerifiedDate = r.Certificate.VerifiedDate,
-                        ReceivedDate = r.Certificate.ReceivedDate
+                        ReceivedDate = r.Certificate.ReceivedDate,
+                        ReminderEnabled = r.Certificate.ReminderEnabled,
+                        ReminderDate = r.Certificate.ReminderDate
                     } : null
                 };
             }).ToList()
