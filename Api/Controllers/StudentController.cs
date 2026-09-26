@@ -13,6 +13,10 @@ public class StudentCertificateUploadResponse
     public string VerifiedStatus { get; set; } = string.Empty;
     public DateTime? SubmittedDate { get; set; }
     public string? StoragePath { get; set; }
+    public string? CertificateNumber { get; set; }
+    public decimal? Score { get; set; }
+    public string? PassStatus { get; set; }
+    public DateTime? IssuedDate { get; set; }
 }
 
 [ApiController]
@@ -206,7 +210,11 @@ public class StudentController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadCourseCertificate(
         [FromRoute] Guid registrationId,
-        IFormFile file,
+        [FromForm] IFormFile file,
+        [FromForm] string? certificateNumber,
+        [FromForm] decimal? score,
+        [FromForm] string? passStatus,
+        [FromForm] DateTime? issuedDate,
         CancellationToken cancellationToken)
     {
         var (userId, studentId) = await GetAuthenticatedStudentContextAsync(cancellationToken);
@@ -218,6 +226,16 @@ public class StudentController : ControllerBase
         if (file == null || file.Length == 0)
         {
             return BadRequest(ApiResponse<object>.FailureResponse("Please select a PDF certificate."));
+        }
+
+        if (score.HasValue && (score.Value < 0 || score.Value > 100))
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse("Score must be between 0 and 100."));
+        }
+
+        if (issuedDate.HasValue && issuedDate.Value > DateTime.UtcNow.AddDays(1))
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse("Issued date cannot be in the future."));
         }
 
         // Strict ownership: only the logged-in student can upload to their own registration.
@@ -242,7 +260,11 @@ public class StudentController : ControllerBase
                 file.Length,
                 userId.Value,
                 GetClientIp(),
-                cancellationToken);
+                cancellationToken,
+                certificateNumber,
+                score,
+                passStatus,
+                issuedDate);
 
             return Ok(ApiResponse<StudentCertificateUploadResponse>.SuccessResponse(
                 new StudentCertificateUploadResponse
@@ -250,7 +272,11 @@ public class StudentController : ControllerBase
                     CertificateId = uploaded.CertificateId,
                     VerifiedStatus = uploaded.VerifiedStatus,
                     SubmittedDate = uploaded.SubmittedDate,
-                    StoragePath = uploaded.StoragePath
+                    StoragePath = uploaded.StoragePath,
+                    CertificateNumber = uploaded.CertificateNumber,
+                    Score = uploaded.Score,
+                    PassStatus = uploaded.PassStatus,
+                    IssuedDate = uploaded.IssuedDate
                 },
                 "Certificate uploaded successfully. It is now available for staff verification."));
         }
@@ -266,6 +292,43 @@ public class StudentController : ControllerBase
         {
             _logger.LogError(ex, "Student certificate upload failed for registration {RegistrationId}", registrationId);
             return StatusCode(500, ApiResponse<object>.FailureResponse("Certificate upload failed."));
+        }
+    }
+
+    [HttpPost("courses/{registrationId:guid}/certificate/reminder")]
+    public async Task<IActionResult> SetCertificateReminder(
+        [FromRoute] Guid registrationId,
+        [FromBody] StudentCertificateReminderDto request,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                     ?? User.FindFirst("sub")?.Value;
+
+        if (!Guid.TryParse(userId, out var parsedUserId))
+        {
+            return Unauthorized(ApiResponse<object>.FailureResponse("Invalid student token context."));
+        }
+
+        try
+        {
+            var result = await _studentNotificationService.SetCertificateReminderAsync(
+                parsedUserId,
+                registrationId,
+                request,
+                cancellationToken);
+
+            if (result == null)
+            {
+                return NotFound(ApiResponse<object>.FailureResponse("Course registration not found."));
+            }
+
+            return Ok(ApiResponse<StudentCertificateReminderResponseDto>.SuccessResponse(
+                result,
+                result.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse(ex.Message));
         }
     }
 
