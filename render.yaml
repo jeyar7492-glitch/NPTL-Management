@@ -1,32 +1,32 @@
-# ==============================================================================
-# NPTEL Management System - Render Web Service Blueprint
-# Reproducible, production-ready specification with zero exposed secrets.
-# Secrets are declared with `sync: false` to be configured in Render dashboard.
-# ==============================================================================
+# NPTEL Management System - Render Blueprint
+# Uses the existing Render Postgres database so no Supabase DB password is required.
+
 services:
   - type: web
-    name: nptel-management-api
+    name: NPTL-Management
     runtime: docker
+    repo: https://github.com/jeyar7492-glitch/NPTL-Management
+    branch: pwa-phase1
     dockerfilePath: ./Dockerfile
+    dockerContext: .
     plan: free
-    region: singapore
+    region: oregon
+    autoDeploy: true
     healthCheckPath: /api/v1/health/live
-    autoDeploy: false
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      - key: USE_INMEMORY_DB
+        value: "false"
+      - key: ENABLE_BACKGROUND_WORKER
+        value: "true"
+      - key: AUTO_INITIALIZE_DB
+        value: "true"
       - key: JWT_ISSUER
         value: NPTELManagementApi
       - key: JWT_AUDIENCE
         value: NPTELManagementClient
-      # Sensitive secrets below: configure securely in Render Service Settings
-      - key: JWT_SECRET
-        sync: false
       - key: SUPABASE_DB_CONNECTION
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
-      - key: SUPABASE_STORAGE_SERVICE_ROLE_KEY
-        sync: false
+        fromDatabase:
+          name: NPTL-Management-DB
+          property: connectionString
