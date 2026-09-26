@@ -70,7 +70,7 @@ public static class DependencyInjection
                 rawConnectionString = configuration.GetConnectionString("DefaultConnection");
             }
 
-            var connectionString = NormalizeDatabaseConnectionString(rawConnectionString);
+            var connectionString = NormalizeDatabaseConnectionString(rawConnectionString, configuration["SUPABASE_URL"]);
 
             if (!string.IsNullOrWhiteSpace(connectionString))
             {
@@ -187,8 +187,9 @@ public static class DependencyInjection
     /// 4. Preserves Host, Port, Database, Username, Password, SslMode=Require, TrustServerCertificate=true.
     /// 5. Never logs or leaks passwords or credentials in exceptions.
     /// </summary>
-    public static string? NormalizeDatabaseConnectionString(string? raw)
+    public static string? NormalizeDatabaseConnectionString(string? raw, string? supabaseUrl = null)
     {
+        var supabaseProjectRef = ExtractSupabaseProjectRef(supabaseUrl);
         if (string.IsNullOrWhiteSpace(raw))
         {
             return null;
@@ -223,6 +224,7 @@ public static class DependencyInjection
 
                 username = Uri.UnescapeDataString(username);
                 password = Uri.UnescapeDataString(password);
+                username = NormalizeSupabasePoolerUsername(username, uri.Host, supabaseProjectRef);
 
                 var dbName = uri.AbsolutePath.TrimStart('/');
                 if (string.IsNullOrWhiteSpace(dbName))
@@ -277,6 +279,7 @@ public static class DependencyInjection
             try
             {
                 var builder = new NpgsqlConnectionStringBuilder(trimmed);
+                builder.Username = NormalizeSupabasePoolerUsername(builder.Username, builder.Host, supabaseProjectRef);
                 if (!builder.ContainsKey("SSL Mode") && !builder.ContainsKey("SslMode"))
                 {
                     builder.SslMode = SslMode.Require;
@@ -293,5 +296,48 @@ public static class DependencyInjection
             }
         }
     }
+    private static string? ExtractSupabaseProjectRef(string? supabaseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(supabaseUrl))
+        {
+            return null;
+        }
+
+        try
+        {
+            var trimmed = supabaseUrl.Trim().Trim('"', '\'');
+            if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+            {
+                return null;
+            }
+
+            var host = uri.Host;
+            const string suffix = ".supabase.co";
+            if (host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                var projectRef = host[..^suffix.Length];
+                return string.IsNullOrWhiteSpace(projectRef) ? null : projectRef;
+            }
+        }
+        catch
+        {
+            // Keep the original connection configuration intact when the optional URL cannot be parsed.
+        }
+
+        return null;
+    }
+
+    private static string NormalizeSupabasePoolerUsername(string username, string host, string? supabaseProjectRef)
+    {
+        if (!string.IsNullOrWhiteSpace(supabaseProjectRef) &&
+            username.Equals("postgres", StringComparison.OrdinalIgnoreCase) &&
+            host.EndsWith(".pooler.supabase.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"postgres.{supabaseProjectRef}";
+        }
+
+        return username;
+    }
+
 #pragma warning restore CS0618
 }
