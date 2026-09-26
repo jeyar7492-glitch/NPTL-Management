@@ -375,7 +375,11 @@
   }
 
   async function loadAdminReports(force) {
-    const result = await cached("/api/v1/admin/reports/preview", force);
+    const path = "/api/v1/admin/reports/preview";
+    const result = force || !state.cache.has(path)
+      ? await request(path, { method: "POST", body: { reportType: "student-registration", department: "CSE" } })
+      : state.cache.get(path);
+    state.cache.set(path, result);
     const d = result?.data;
     setPageTitle("Reports", "Admin portal");
     $("statsGrid").innerHTML = "";
