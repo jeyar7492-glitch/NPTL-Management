@@ -180,6 +180,49 @@ public class StaffController : ControllerBase
         return Ok(ApiResponse<StaffReportPreviewDto>.SuccessResponse(report, "Report preview generated successfully."));
     }
 
+    [HttpGet("reports/export-csv")]
+    public async Task<IActionResult> ExportCsv(
+        [FromQuery] string reportType = "student-registration",
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == Guid.Empty)
+            return Unauthorized(ApiResponse<object>.FailureResponse("Invalid staff token context."));
+
+        try
+        {
+            var bytes = await _staffReportService.GenerateCsvAsync(userId, reportType, cancellationToken);
+            return File(bytes, "text/csv", $"NPTEL_Staff_{reportType}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv");
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+    }
+
+    [HttpGet("reports/export-xlsx")]
+    public async Task<IActionResult> ExportXlsx(
+        [FromQuery] string reportType = "student-registration",
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == Guid.Empty)
+            return Unauthorized(ApiResponse<object>.FailureResponse("Invalid staff token context."));
+
+        try
+        {
+            var bytes = await _staffReportService.GenerateXlsxAsync(userId, reportType, cancellationToken);
+            return File(
+                bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"NPTEL_Staff_{reportType}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx");
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+    }
+
     [HttpGet("certificates/{certificateId:guid}/access")]
     public async Task<IActionResult> GetCertificateAccess([FromRoute] Guid certificateId, CancellationToken cancellationToken)
     {
