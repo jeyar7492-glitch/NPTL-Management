@@ -64,7 +64,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.ClassSection).HasColumnName("class_section").HasMaxLength(50);
             entity.Property(e => e.Year).HasColumnName("year").IsRequired();
             entity.Property(e => e.Semester).HasColumnName("semester").IsRequired();
-            entity.Property(e => e.AcademicYear).HasColumnName("academic_year").HasMaxLength(20);
+            entity.Property(e => e.AcademicYear).HasColumnName("academic_year").HasMaxLength(20).IsRequired();
             entity.Property(e => e.Batch).HasColumnName("batch").HasMaxLength(50);
             entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(255);
             entity.Property(e => e.Phone).HasColumnName("phone").HasMaxLength(20);
