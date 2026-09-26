@@ -177,6 +177,42 @@ public class AdminNotificationService : IAdminNotificationService
         int generatedCount = 0;
         var now = DateTime.UtcNow;
 
+        // Rule 0: Student-scheduled certificate reminder
+        var dueCertificateReminders = await _context.Certificates
+            .Include(c => c.Registration)
+                .ThenInclude(r => r!.Student)
+            .Include(c => c.Registration)
+                .ThenInclude(r => r!.Course)
+            .Where(c => c.ReminderEnabled &&
+                        c.ReminderDate.HasValue &&
+                        c.ReminderDate.Value <= now &&
+                        c.LastReminderSentDate == null &&
+                        c.VerifiedStatus != CertificateStatus.Verified &&
+                        c.VerifiedStatus != CertificateStatus.Received)
+            .ToListAsync(cancellationToken);
+
+        foreach (var certificate in dueCertificateReminders)
+        {
+            if (certificate.Registration?.Student == null) continue;
+
+            _context.Notifications.Add(new Notification
+            {
+                NotificationId = Guid.NewGuid(),
+                UserId = certificate.Registration.Student.UserId,
+                Title = "Certificate Submission Reminder",
+                Message = $"Please upload or update your NPTEL certificate for '{certificate.Registration.Course?.CourseName}'. Your certificate reminder is due.",
+                IsRead = false,
+                RelatedRegistrationId = certificate.RegistrationId,
+                CreatedAt = now
+            });
+
+            certificate.LastReminderSentDate = now;
+            certificate.ReminderEnabled = false;
+            certificate.ReminderDate = null;
+            certificate.UpdatedAt = now;
+            generatedCount++;
+        }
+
         // Rule 1: Exam Application Deadline within 7 days
         var upcomingDeadlineLimit = now.AddDays(7);
         var pendingExamApps = await _context.ExamStatuses
