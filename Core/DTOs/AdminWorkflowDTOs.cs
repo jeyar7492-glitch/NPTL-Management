@@ -298,6 +298,9 @@ public class AdminCertificateDto
     public string CourseCode { get; set; } = string.Empty;
 
     public string? StoragePath { get; set; }
+    public string? CertificateNumber { get; set; }
+    public decimal? Score { get; set; }
+    public string? PassStatus { get; set; }
     public bool HasFile => !string.IsNullOrWhiteSpace(StoragePath);
     public string VerifiedStatus { get; set; } = "Pending";
     public DateTime? SubmittedDate { get; set; }
