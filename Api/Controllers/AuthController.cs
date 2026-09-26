@@ -20,6 +20,7 @@ public class AuthController : ControllerBase
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILoginRateLimiter _rateLimiter;
     private readonly IAuditLogRepository _auditLogRepository;
+    private readonly IAdminStudentService _adminStudentService;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
@@ -31,6 +32,7 @@ public class AuthController : ControllerBase
         IJwtTokenService jwtTokenService,
         ILoginRateLimiter rateLimiter,
         IAuditLogRepository auditLogRepository,
+        IAdminStudentService adminStudentService,
         ILogger<AuthController> logger)
     {
         _userRepository = userRepository;
@@ -41,7 +43,90 @@ public class AuthController : ControllerBase
         _jwtTokenService = jwtTokenService;
         _rateLimiter = rateLimiter;
         _auditLogRepository = auditLogRepository;
+        _adminStudentService = adminStudentService;
         _logger = logger;
+    }
+
+    [HttpPost("student/register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> StudentRegister([FromBody] StudentSelfRegisterDto request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<object>.FailureResponse("Invalid request payload."));
+
+        if (string.IsNullOrWhiteSpace(request.Name) ||
+            string.IsNullOrWhiteSpace(request.RegisterNumber) ||
+            string.IsNullOrWhiteSpace(request.Department) ||
+            string.IsNullOrWhiteSpace(request.ClassSection) ||
+            string.IsNullOrWhiteSpace(request.AcademicYear) ||
+            string.IsNullOrWhiteSpace(request.Email) ||
+            string.IsNullOrWhiteSpace(request.Phone))
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse("Please fill all student account details."));
+        }
+
+        if (request.Year < 1 || request.Year > 4)
+            return BadRequest(ApiResponse<object>.FailureResponse("Year must be between 1 and 4."));
+
+        if (request.Semester < 1 || request.Semester > 8)
+            return BadRequest(ApiResponse<object>.FailureResponse("Semester must be between 1 and 8."));
+
+        if (request.Password.Length < 8)
+            return BadRequest(ApiResponse<object>.FailureResponse("Password must be at least 8 characters."));
+
+        if (!string.Equals(request.Password, request.ConfirmPassword, StringComparison.Ordinal))
+            return BadRequest(ApiResponse<object>.FailureResponse("Passwords do not match."));
+
+        try
+        {
+            var created = await _adminStudentService.CreateStudentAsync(
+                new CreateStudentDto
+                {
+                    Name = request.Name.Trim(),
+                    RegisterNumber = request.RegisterNumber.Trim(),
+                    Department = request.Department.Trim(),
+                    ClassSection = request.ClassSection.Trim(),
+                    Year = request.Year,
+                    Semester = request.Semester,
+                    AcademicYear = request.AcademicYear.Trim(),
+                    Email = request.Email.Trim(),
+                    Phone = request.Phone.Trim(),
+                    InitialPassword = request.Password
+                },
+                adminUserId: null,
+                ipAddress: GetClientIp(),
+                cancellationToken);
+
+            var student = await _studentRepository.GetByRegisterNumberAsync(created.RegisterNumber, cancellationToken);
+            if (student?.User == null)
+                return StatusCode(500, ApiResponse<object>.FailureResponse("Student account was created but login session could not be started."));
+
+            var token = _jwtTokenService.GenerateToken(
+                student.User,
+                student.RegisterNumber,
+                student.Name,
+                roleSpecificId: student.StudentId,
+                department: student.Department);
+
+            await LogAuditAsync(student.UserId, "StudentSelfRegistration", "New student account registered and signed in", cancellationToken);
+
+            return StatusCode(201, ApiResponse<AuthSuccessResponse>.SuccessResponse(new AuthSuccessResponse
+            {
+                AccessToken = token,
+                ExpiresAt = _jwtTokenService.GetTokenExpiration(),
+                Role = UserRole.Student.ToString(),
+                Identifier = student.RegisterNumber,
+                Name = student.Name
+            }, "Student account created successfully. You are now signed in."));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<object>.FailureResponse(ex.Message));
+        }
     }
 
     [HttpPost("student/login")]
