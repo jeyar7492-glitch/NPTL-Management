@@ -254,6 +254,39 @@ public class AdminNotificationService : IAdminNotificationService
             }
         }
 
+        // Rule 2: Result pending reminder every 3 days after the exam until score/pass result is recorded
+        var resultReminderCandidates = await _context.ExamStatuses
+            .Include(e => e.Registration)
+                .ThenInclude(r => r!.Student)
+            .Include(e => e.Registration)
+                .ThenInclude(r => r!.Course)
+            .Where(e => e.ExamDate.HasValue &&
+                        e.ExamDate.Value <= now.AddDays(-3) &&
+                        e.Score == null &&
+                        string.IsNullOrWhiteSpace(e.PassStatus) &&
+                        (e.LastResultReminderDate == null || e.LastResultReminderDate.Value <= now.AddDays(-3)))
+            .ToListAsync(cancellationToken);
+
+        foreach (var item in resultReminderCandidates)
+        {
+            if (item.Registration?.Student == null) continue;
+
+            _context.Notifications.Add(new Notification
+            {
+                NotificationId = Guid.NewGuid(),
+                UserId = item.Registration.Student.UserId,
+                Title = "NPTEL Result Pending",
+                Message = $"Your NPTEL result for '{item.Registration.Course?.CourseName}' is still pending. We will remind you again in 3 days unless the result is updated.",
+                IsRead = false,
+                RelatedRegistrationId = item.RegistrationId,
+                CreatedAt = now
+            });
+
+            item.LastResultReminderDate = now;
+            item.UpdatedAt = now;
+            generatedCount++;
+        }
+
         // Rule 2: Proctored Exam Date within 3 days
         var examDateLimit = now.AddDays(3);
         var scheduledExams = await _context.ExamStatuses
