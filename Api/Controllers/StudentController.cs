@@ -7,6 +7,14 @@ using NPTELManagement.Core.Interfaces;
 
 namespace NPTELManagement.Api.Controllers;
 
+public class StudentCertificateUploadResponse
+{
+    public Guid CertificateId { get; set; }
+    public string VerifiedStatus { get; set; } = string.Empty;
+    public DateTime? SubmittedDate { get; set; }
+    public string? StoragePath { get; set; }
+}
+
 [ApiController]
 [Route("api/v1/[controller]")]
 [Authorize(Roles = "Student")]
@@ -194,6 +202,73 @@ public class StudentController : ControllerBase
         return Ok(ApiResponse<object>.SuccessResponse(new { notificationId, isRead = true }, "Notification marked as read."));
     }
 
+    [HttpPost("courses/{registrationId:guid}/certificate/upload")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadCourseCertificate(
+        [FromRoute] Guid registrationId,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        var (userId, studentId) = await GetAuthenticatedStudentContextAsync(cancellationToken);
+        if (studentId == null || userId == null)
+        {
+            return Unauthorized(ApiResponse<object>.FailureResponse("Invalid student token context."));
+        }
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse("Please select a PDF certificate."));
+        }
+
+        // Strict ownership: only the logged-in student can upload to their own registration.
+        var ownedCourse = await _studentCourseService.GetCourseDetailsAsync(
+            studentId.Value,
+            registrationId,
+            cancellationToken);
+
+        if (ownedCourse == null)
+        {
+            return NotFound(ApiResponse<object>.FailureResponse("Course registration not found."));
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            var uploaded = await _adminCertificateService.UploadCertificateAsync(
+                registrationId,
+                stream,
+                file.FileName,
+                file.ContentType,
+                file.Length,
+                userId.Value,
+                GetClientIp(),
+                cancellationToken);
+
+            return Ok(ApiResponse<StudentCertificateUploadResponse>.SuccessResponse(
+                new StudentCertificateUploadResponse
+                {
+                    CertificateId = uploaded.CertificateId,
+                    VerifiedStatus = uploaded.VerifiedStatus,
+                    SubmittedDate = uploaded.SubmittedDate,
+                    StoragePath = uploaded.StoragePath
+                },
+                "Certificate uploaded successfully. It is now available for staff verification."));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Student certificate upload failed for registration {RegistrationId}", registrationId);
+            return StatusCode(500, ApiResponse<object>.FailureResponse("Certificate upload failed."));
+        }
+    }
+
     [HttpGet("certificates/{certificateId:guid}/access")]
     public async Task<IActionResult> GetCertificateAccess([FromRoute] Guid certificateId, CancellationToken cancellationToken)
     {
@@ -225,6 +300,11 @@ public class StudentController : ControllerBase
         {
             return BadRequest(ApiResponse<object>.FailureResponse(ex.Message));
         }
+    }
+
+    private string GetClientIp()
+    {
+        return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     }
 
     private async Task<(Guid? userId, Guid? studentId)> GetAuthenticatedStudentContextAsync(CancellationToken cancellationToken)
