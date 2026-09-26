@@ -1,0 +1,36 @@
+name: PWA Phase 1 Build
+
+on:
+  push:
+    branches:
+      - pwa-phase1
+
+jobs:
+  build-api-and-pwa:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore API
+        run: dotnet restore Api/NPTELManagement.Api.csproj
+
+      - name: Build API
+        run: dotnet build Api/NPTELManagement.Api.csproj --configuration Release --no-restore
+
+      - name: Verify PWA shell
+        shell: bash
+        run: |
+          test -f Api/wwwroot/index.html
+          test -f Api/wwwroot/app.js
+          test -f Api/wwwroot/styles.css
+          test -f Api/wwwroot/manifest.webmanifest
+          test -f Api/wwwroot/sw.js
+          test -f Api/wwwroot/icon-192.svg
+          test -f Api/wwwroot/icon-512.svg
+          echo "PWA shell files present."
