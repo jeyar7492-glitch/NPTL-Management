@@ -210,7 +210,7 @@ public class StudentController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadCourseCertificate(
         [FromRoute] Guid registrationId,
-        [FromForm] IFormFile file,
+        IFormFile file,
         [FromForm] string? certificateNumber,
         [FromForm] decimal? score,
         [FromForm] string? passStatus,
