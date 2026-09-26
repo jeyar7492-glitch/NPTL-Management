@@ -89,3 +89,8 @@ button{cursor:pointer}
 @media(max-width:1050px){.app-shell{grid-template-columns:1fr}.sidebar{position:static;height:auto}.sidebar nav{flex-direction:row;overflow:auto}.sidebar-footer{display:none}.auth-grid{grid-template-columns:1fr}.auth-hero{padding-top:15px}.content-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.topbar,.view{padding-left:18px;padding-right:18px}.auth-hero h2{font-size:35px}.hero-points,.stats-grid{grid-template-columns:1fr 1fr}.content-grid{grid-template-columns:1fr}.footer{padding:0 18px 18px}.stats-grid .stat:last-child{display:none}}
 @media(max-width:500px){.hero-points,.stats-grid{grid-template-columns:1fr}.sidebar nav{display:none}.topbar h1{font-size:24px}}
+
+.row-actions{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:9px;flex-wrap:wrap}
+.data-item{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.data-item > div:first-child{min-width:0}
+.data-meta{line-height:1.5}
