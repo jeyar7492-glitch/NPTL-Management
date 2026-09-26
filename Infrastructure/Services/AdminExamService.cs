@@ -66,6 +66,7 @@ public class AdminExamService : IAdminExamService
                 ExamApplicationDate = e.ExamApplicationDate,
                 ExamApplicationDeadline = e.ExamApplicationDeadline,
                 ExamDate = e.ExamDate,
+                LastResultReminderDate = e.LastResultReminderDate,
                 HallTicketStatus = e.HallTicketStatus,
                 ExamStatus = e.Status ?? "NotStarted",
                 Score = e.Score,
@@ -105,6 +106,7 @@ public class AdminExamService : IAdminExamService
             ExamApplicationDate = e.ExamApplicationDate,
             ExamApplicationDeadline = e.ExamApplicationDeadline,
             ExamDate = e.ExamDate,
+            LastResultReminderDate = e.LastResultReminderDate,
             HallTicketStatus = e.HallTicketStatus,
             ExamStatus = e.Status ?? "NotStarted",
             Score = e.Score,
@@ -161,6 +163,9 @@ public class AdminExamService : IAdminExamService
         exam.HallTicketStatus = dto.HallTicketStatus;
         exam.Status = dto.ExamStatus;
         exam.Score = dto.Score;
+        exam.LastResultReminderDate = dto.Score.HasValue || !string.IsNullOrWhiteSpace(dto.PassStatus)
+            ? null
+            : (exam.ExamDate.HasValue ? exam.ExamDate.Value : null);
 
         if (!string.IsNullOrWhiteSpace(dto.PassStatus))
         {
@@ -193,6 +198,7 @@ public class AdminExamService : IAdminExamService
             ExamApplicationDate = exam.ExamApplicationDate,
             ExamApplicationDeadline = exam.ExamApplicationDeadline,
             ExamDate = exam.ExamDate,
+            LastResultReminderDate = exam.LastResultReminderDate,
             HallTicketStatus = exam.HallTicketStatus,
             ExamStatus = exam.Status ?? "NotStarted",
             Score = exam.Score,
