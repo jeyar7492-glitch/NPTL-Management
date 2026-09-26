@@ -428,10 +428,15 @@ public class StaffStudentService : IStaffStudentService
             CertificateId = reg.Certificate.CertificateId,
             VerifiedStatus = reg.Certificate.VerifiedStatus.ToString(),
             StoragePath = reg.Certificate.StoragePath,
+            CertificateNumber = reg.Certificate.CertificateNumber,
+            Score = reg.Certificate.Score,
+            PassStatus = reg.Certificate.PassStatus,
             SubmittedDate = reg.Certificate.SubmittedDate,
             IssuedDate = reg.Certificate.IssuedDate,
             VerifiedDate = reg.Certificate.VerifiedDate,
-            ReceivedDate = reg.Certificate.ReceivedDate
+            ReceivedDate = reg.Certificate.ReceivedDate,
+            ReminderEnabled = reg.Certificate.ReminderEnabled,
+            ReminderDate = reg.Certificate.ReminderDate
         };
     }
 
