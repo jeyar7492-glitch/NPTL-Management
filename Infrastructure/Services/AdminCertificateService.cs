@@ -142,11 +142,11 @@ public class AdminCertificateService : IAdminCertificateService
         long fileLength, 
         Guid? adminUserId, 
         string? ipAddress,
+        CancellationToken cancellationToken = default,
         string? certificateNumber = null,
         decimal? score = null,
         string? passStatus = null,
-        DateTime? issuedDate = null,
-        CancellationToken cancellationToken = default)
+        DateTime? issuedDate = null)
     {
         // 1. Validation
         if (fileStream == null || fileLength <= 0)
