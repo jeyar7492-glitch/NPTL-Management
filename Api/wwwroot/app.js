@@ -327,8 +327,14 @@
     $("statsGrid").innerHTML = "";
     $("welcomeBanner").innerHTML = banner(d?.reportTitle || "Scoped Report", "Read-only report preview for your assigned scope.");
     $("primaryHeading").textContent = "Report Preview";
-    $("primaryContent").innerHTML = tableCards(d?.items || [], "report");
+    $("primaryContent").innerHTML =
+      '<div class="report-toolbar">' +
+      '<button class="primary-btn small" id="downloadStaffXlsx">Download Excel</button>' +
+      '<button class="ghost-btn small" id="downloadStaffCsv">Download CSV</button>' +
+      '</div>' +
+      tableCards(d?.items || [], "report");
     $("profileContent").innerHTML = profileRows(d, ["department","year","classSection","totalRecords","generatedAt"]);
+    bindStaffExportButtons();
   }
 
   async function loadAdminStudents(force) {
@@ -555,30 +561,63 @@
     const e = d?.exam || {};
     const certificate = d?.certificate || {};
     const certStatus = certificate.verifiedStatus || "Pending";
-
-    let uploadBlock = "";
-    if (allowStudent && certificate.certificateId && !["Verified", "Received"].includes(certStatus)) {
-      uploadBlock =
-        '<div class="upload-box">' +
-        '<div><strong>Submit NPTEL Certificate</strong><div class="data-meta">PDF only, maximum 10 MB. Staff will verify after submission.</div></div>' +
-        '<input id="certificateFile" type="file" accept=".pdf,application/pdf">' +
-        '<button class="primary-btn small" id="uploadCertificateBtn" data-registration="' + escapeHtml(d.registrationId) + '">Upload Certificate</button>' +
-        '<div id="uploadMessage" class="form-message"></div>' +
-        '</div>';
-    }
+    const reminderEnabled = !!certificate.reminderEnabled;
+    const defaultReminderDate = certificate.reminderDate
+      ? new Date(certificate.reminderDate).toISOString().slice(0, 16)
+      : "";
 
     const existingAccess =
       certificate.certificateId && certificate.storagePath
         ? '<button class="ghost-btn small" data-cert="' + certificate.certificateId + '">Open Submitted Certificate</button>'
         : "";
 
+    let uploadBlock = "";
+    if (allowStudent && certificate.certificateId && !["Verified", "Received"].includes(certStatus)) {
+      uploadBlock =
+        '<div class="certificate-box">' +
+        '<div class="box-title">Submit NPTEL Certificate</div>' +
+        '<div class="data-meta">Enter certificate details and upload the official PDF. Maximum 10 MB.</div>' +
+        '<div class="form-grid">' +
+        '<div><label>Certificate Number</label><input id="certificateNumber" class="form-input" value="' + escapeHtml(certificate.certificateNumber || "") + '" placeholder="e.g. NPTEL-2026-001"></div>' +
+        '<div><label>Score</label><input id="certificateScore" class="form-input" type="number" min="0" max="100" step="0.01" value="' + escapeHtml(certificate.score ?? "") + '" placeholder="e.g. 78.5"></div>' +
+        '<div><label>Pass Status</label><select id="certificatePassStatus" class="form-input">' +
+        ['Pass','Elite','Elite + Silver','Elite + Gold','Successfully Completed',''].map(v => {
+          const selected = (certificate.passStatus || "") === v ? " selected" : "";
+          return '<option value="' + escapeHtml(v) + '"' + selected + '>' + escapeHtml(v || "Select status") + '</option>';
+        }).join("") +
+        '</select></div>' +
+        '<div><label>Issued Date</label><input id="certificateIssuedDate" class="form-input" type="date" value="' + (certificate.issuedDate ? String(certificate.issuedDate).slice(0,10) : "") + '"></div>' +
+        '</div>' +
+        '<div class="upload-row">' +
+        '<input id="certificateFile" class="form-input" type="file" accept=".pdf,application/pdf">' +
+        '<button class="primary-btn small" id="uploadCertificateBtn" data-registration="' + escapeHtml(d.registrationId) + '">Upload Certificate</button>' +
+        '</div>' +
+        '<div id="uploadMessage" class="form-message"></div>' +
+        '</div>';
+    }
+
+    const reminderBlock = allowStudent && certificate.certificateId
+      ? '<div class="certificate-box reminder-box">' +
+        '<div class="box-title">Certificate Reminder</div>' +
+        '<div class="data-meta">Enable an in-app reminder so you do not forget to submit or update your certificate.</div>' +
+        '<div class="reminder-row">' +
+        '<label class="switch-line"><input id="certificateReminderEnabled" type="checkbox"' + (reminderEnabled ? " checked" : "") + '><span>Enable reminder</span></label>' +
+        '<input id="certificateReminderDate" class="form-input reminder-date" type="datetime-local" value="' + escapeHtml(defaultReminderDate) + '">' +
+        '<button class="ghost-btn small" id="saveCertificateReminder" data-registration="' + escapeHtml(d.registrationId) + '">Save Reminder</button>' +
+        '</div>' +
+        '<div id="reminderMessage" class="form-message"></div>' +
+        '</div>' : "";
+
     return '<div class="profile-list">' +
       '<div class="profile-row"><span>Exam</span><span>' +
       escapeHtml([e.examStatus,e.hallTicketStatus,e.passStatus,e.score != null ? "Score " + e.score : null].filter(Boolean).join(" · ") || "Not available") +
       '</span></div>' +
       '<div class="profile-row"><span>Certificate Status</span><span>' + escapeHtml(certStatus) + '</span></div>' +
+      '<div class="profile-row"><span>Certificate Number</span><span>' + escapeHtml(certificate.certificateNumber || "—") + '</span></div>' +
+      '<div class="profile-row"><span>Certificate Score</span><span>' + escapeHtml(certificate.score ?? "—") + '</span></div>' +
+      '<div class="profile-row"><span>Pass Status</span><span>' + escapeHtml(certificate.passStatus || "—") + '</span></div>' +
       '<div class="row-actions">' + existingAccess + '</div>' +
-      uploadBlock +
+      uploadBlock + reminderBlock +
       '</div>';
   }
   function courseDetailView(d) {
@@ -610,36 +649,68 @@
 
   function bindStudentUploadButton(registrationId) {
     const btn = $("uploadCertificateBtn");
-    if (!btn) return;
-    btn.addEventListener("click", async () => {
-      const fileInput = $("certificateFile");
-      const message = $("uploadMessage");
-      const file = fileInput?.files?.[0];
-      if (!file) {
-        message.textContent = "Please select a PDF certificate.";
-        return;
-      }
+    if (btn) {
+      btn.addEventListener("click", async () => {
+        const fileInput = $("certificateFile");
+        const message = $("uploadMessage");
+        const file = fileInput?.files?.[0];
+        if (!file) {
+          message.textContent = "Please select a PDF certificate.";
+          return;
+        }
 
-      message.textContent = "Uploading certificate…";
-      const form = new FormData();
-      form.append("file", file, file.name);
+        const form = new FormData();
+        form.append("file", file, file.name);
+        form.append("certificateNumber", $("certificateNumber")?.value?.trim() || "");
+        if ($("certificateScore")?.value) form.append("score", $("certificateScore").value);
+        form.append("passStatus", $("certificatePassStatus")?.value || "");
+        if ($("certificateIssuedDate")?.value) form.append("issuedDate", $("certificateIssuedDate").value);
 
-      try {
-        const result = await request("/api/v1/student/courses/" + registrationId + "/certificate/upload", {
-          method: "POST",
-          body: form,
-          timeoutMs: 30000
-        });
-        message.className = "form-message success";
-        message.textContent = result?.message || "Certificate uploaded successfully.";
-        state.cache.delete("/api/v1/student/courses/" + registrationId);
-        await openStudentCourse(registrationId);
-      } catch (err) {
-        message.className = "form-message";
-        message.textContent = err.message || "Certificate upload failed.";
-      }
-    });
+        message.textContent = "Uploading certificate…";
+        try {
+          const result = await request("/api/v1/student/courses/" + registrationId + "/certificate/upload", {
+            method: "POST",
+            body: form,
+            timeoutMs: 30000
+          });
+          message.className = "form-message success";
+          message.textContent = result?.message || "Certificate uploaded successfully.";
+          state.cache.delete("/api/v1/student/courses/" + registrationId);
+          await openStudentCourse(registrationId);
+        } catch (err) {
+          message.className = "form-message";
+          message.textContent = err.message || "Certificate upload failed.";
+        }
+      });
+    }
+
+    const reminderBtn = $("saveCertificateReminder");
+    if (reminderBtn) {
+      reminderBtn.addEventListener("click", async () => {
+        const enabled = !!$("certificateReminderEnabled")?.checked;
+        const dateValue = $("certificateReminderDate")?.value || "";
+        const message = $("reminderMessage");
+        message.textContent = "Saving reminder…";
+        try {
+          const result = await request("/api/v1/student/courses/" + registrationId + "/certificate/reminder", {
+            method: "POST",
+            body: {
+              enabled,
+              reminderDate: enabled && dateValue ? new Date(dateValue).toISOString() : null
+            }
+          });
+          message.className = "form-message success";
+          message.textContent = result?.message || "Reminder updated.";
+          state.cache.delete("/api/v1/student/courses/" + registrationId);
+          await openStudentCourse(registrationId);
+        } catch (err) {
+          message.className = "form-message";
+          message.textContent = err.message || "Could not save reminder.";
+        }
+      });
+    }
   }
+
 
   function bindCourseButtons(items) {
     document.querySelectorAll("[data-course]").forEach(btn => btn.addEventListener("click", () => openStudentCourse(btn.dataset.course)));
@@ -668,6 +739,37 @@
     } finally {
       showLoading(false);
     }
+  }
+
+  function bindStaffExportButtons() {
+    const download = async (format) => {
+      try {
+        const url = "/api/v1/staff/reports/export-" + format + "?reportType=student-registration";
+        const headers = state.token ? { Authorization: "Bearer " + state.token } : {};
+        const response = await fetch(baseUrl + url, { headers });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || "Download failed (" + response.status + ")");
+        }
+        const blob = await response.blob();
+        const disposition = response.headers.get("Content-Disposition") || "";
+        const match = disposition.match(/filename="?([^"]+)"?/i);
+        const filename = match ? match[1] : ("NPTEL_Staff_Details." + (format === "xlsx" ? "xlsx" : "csv"));
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        URL.revokeObjectURL(link.href);
+        link.remove();
+      } catch (err) {
+        alert(err.message || "Download failed.");
+      }
+    };
+    const xlsx = $("downloadStaffXlsx");
+    const csv = $("downloadStaffCsv");
+    if (xlsx) xlsx.addEventListener("click", () => download("xlsx"));
+    if (csv) csv.addEventListener("click", () => download("csv"));
   }
 
   function bindCertificateAccessButtons() {
