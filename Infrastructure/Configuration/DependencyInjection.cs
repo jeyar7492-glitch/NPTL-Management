@@ -189,7 +189,7 @@ public static class DependencyInjection
     /// </summary>
     public static string? NormalizeDatabaseConnectionString(string? raw, string? supabaseUrl = null)
     {
-        var supabaseProjectRef = ExtractSupabaseProjectRef(supabaseUrl);
+        var supabaseProjectRef = ExtractSupabaseProjectRef(supabaseUrl) ?? "nbfolaibzmlqvxylsgei";
         if (string.IsNullOrWhiteSpace(raw))
         {
             return null;
