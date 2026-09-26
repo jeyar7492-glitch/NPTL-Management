@@ -58,6 +58,8 @@ public class AdminStudentListDto
     public string Department { get; set; } = string.Empty;
     public string? ClassSection { get; set; }
     public int Year { get; set; }
+    public int Semester { get; set; }
+    public string? AcademicYear { get; set; }
     public string? Batch { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
@@ -75,6 +77,8 @@ public class AdminStudentDetailDto
     public string Department { get; set; } = string.Empty;
     public string? ClassSection { get; set; }
     public int Year { get; set; }
+    public int Semester { get; set; }
+    public string? AcademicYear { get; set; }
     public string? Batch { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
@@ -90,6 +94,8 @@ public class CreateStudentDto
     public string Department { get; set; } = "CSE";
     public string? ClassSection { get; set; } = "A";
     public int Year { get; set; } = 1;
+    public int Semester { get; set; } = 1;
+    public string AcademicYear { get; set; } = "2026-27";
     public string? Batch { get; set; } = "2024-2028";
     public string? Email { get; set; }
     public string? Phone { get; set; }
@@ -102,6 +108,8 @@ public class UpdateStudentDto
     public string Department { get; set; } = "CSE";
     public string? ClassSection { get; set; }
     public int Year { get; set; }
+    public int Semester { get; set; }
+    public string? AcademicYear { get; set; }
     public string? Batch { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
@@ -264,6 +272,7 @@ public class AdminExamDto
     public DateTime? ExamApplicationDate { get; set; }
     public DateTime? ExamApplicationDeadline { get; set; }
     public DateTime? ExamDate { get; set; }
+    public DateTime? LastResultReminderDate { get; set; }
     public string? HallTicketStatus { get; set; }
     public string ExamStatus { get; set; } = "NotStarted";
     public decimal? Score { get; set; }
