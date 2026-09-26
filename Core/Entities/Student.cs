@@ -10,7 +10,7 @@ public class Student
     public string? ClassSection { get; set; }
     public int Year { get; set; }
     public int Semester { get; set; } = 1;
-    public string? AcademicYear { get; set; } = "2026-27";
+    public string AcademicYear { get; set; } = "2026-27";
     public string? Batch { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
