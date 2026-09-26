@@ -82,7 +82,7 @@ button{cursor:pointer}
 .data-title{font-weight:750}
 .data-meta{color:var(--muted);font-size:12px;margin-top:4px}
 .empty{padding:28px;text-align:center;color:var(--muted);border:1px dashed var(--border);border-radius:15px}
-.loading-view{min-height:60vh;display:grid;place-content:center;justify-items:center;color:var(--muted);gap:12px}
+.loading-view{min-height:60vh;display:grid;place-content:center;justify-items:center;color:var(--muted);gap:12px}\n.loading-view[hidden]{display:none !important}
 .spinner{width:34px;height:34px;border:3px solid #e5e7eb;border-top-color:var(--primary);border-radius:50%;animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .footer{padding:0 36px 24px;display:flex;justify-content:space-between;color:#98a2b3;font-size:11px}
