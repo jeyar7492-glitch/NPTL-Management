@@ -8,6 +8,9 @@
     cache: new Map()
   };
 
+  let notificationWatcher = null;
+  let notificationSnapshot = new Set();
+
   const $ = id => document.getElementById(id);
   const loginView = $("loginView");
   const dashboardView = $("dashboardView");
@@ -88,6 +91,9 @@
       sessionStorage.setItem("nptel_token", state.token);
       sessionStorage.setItem("nptel_user", JSON.stringify(state.user));
       state.cache.clear();
+      if (state.role === "Student" && "Notification" in window && Notification.permission === "default") {
+        try { await Notification.requestPermission(); } catch (_) {}
+      }
       await openDashboard();
     } catch (err) {
       loginMessage.textContent = err.message || "Unable to sign in.";
@@ -105,6 +111,7 @@
     state.token = null;
     state.user = null;
     state.cache.clear();
+    stopNotificationWatcher();
     showLogin();
   });
 
@@ -158,6 +165,48 @@
 
   async function openDashboard(force = false) {
     await loadPage("dashboard", force);
+    if (state.role === "Student") startNotificationWatcher();
+    else stopNotificationWatcher();
+  }
+
+  function stopNotificationWatcher() {
+    if (notificationWatcher) {
+      clearInterval(notificationWatcher);
+      notificationWatcher = null;
+    }
+    notificationSnapshot = new Set();
+  }
+
+  async function startNotificationWatcher() {
+    stopNotificationWatcher();
+    if (!state.token || state.role !== "Student") return;
+
+    try {
+      const initial = await request("/api/v1/student/notifications");
+      notificationSnapshot = new Set((initial?.data || []).map(n => n.notificationId).filter(Boolean));
+    } catch (_) {}
+
+    notificationWatcher = setInterval(async () => {
+      if (!state.token || state.role !== "Student") return;
+      try {
+        const result = await request("/api/v1/student/notifications", { timeoutMs: 8000 });
+        const items = Array.isArray(result?.data) ? result.data : [];
+        for (const item of items) {
+          if (!item.notificationId || notificationSnapshot.has(item.notificationId)) continue;
+          notificationSnapshot.add(item.notificationId);
+          if ("Notification" in window && Notification.permission === "granted") {
+            try {
+              new Notification(item.title || "NPTEL Notification", {
+                body: item.message || "You have a new NPTEL notification."
+              });
+            } catch (_) {}
+          }
+        }
+        if (state.currentPage === "notifications") {
+          state.cache.delete("/api/v1/student/notifications");
+        }
+      } catch (_) {}
+    }, 60000);
   }
 
   async function loadPage(page, force = false) {
@@ -341,11 +390,14 @@
     const result = await cached("/api/v1/admin/students?page=1&pageSize=50", force);
     setPageTitle("Students", "Admin portal");
     $("statsGrid").innerHTML = "";
-    $("welcomeBanner").innerHTML = banner("Student Management", "View and manage student records.");
+    $("welcomeBanner").innerHTML = banner("Student Management", "Create a new student account with academic and contact details.");
     const items = result?.data?.items || [];
     $("primaryHeading").textContent = "Students";
-    $("primaryContent").innerHTML = tableCards(items, "admin-student");
-    $("profileContent").innerHTML = '<div class="empty">Use the dashboard for summary metrics.</div>';
+    $("primaryContent").innerHTML =
+      adminStudentCreateForm() +
+      tableCards(items, "admin-student");
+    $("profileContent").innerHTML = '<div class="empty">New account login ID is the Register Number. Default temporary password is Student@Nptel2026.</div>';
+    bindAdminStudentCreate();
     bindDetailButtons();
   }
 
@@ -353,10 +405,13 @@
     const result = await cached("/api/v1/admin/staff?page=1&pageSize=50", force);
     setPageTitle("Staff", "Admin portal");
     $("statsGrid").innerHTML = "";
-    $("welcomeBanner").innerHTML = banner("Staff Management", "View department in-charge assignments.");
+    $("welcomeBanner").innerHTML = banner("Staff Management", "Create staff accounts and assign them to a Year/Class scope.");
     $("primaryHeading").textContent = "Staff Members";
-    $("primaryContent").innerHTML = tableCards(result?.data?.items || [], "admin-staff");
-    $("profileContent").innerHTML = '<div class="empty">Staff creation/edit actions can be added here next.</div>';
+    $("primaryContent").innerHTML =
+      adminStaffCreateForm() +
+      tableCards(result?.data?.items || [], "admin-staff");
+    $("profileContent").innerHTML = '<div class="empty">New staff login ID is the Staff ID. Default temporary password is Staff@Nptel2026.</div>';
+    bindAdminStaffCreate();
   }
 
   async function loadAdminCourses(force) {
@@ -376,17 +431,19 @@
     $("welcomeBanner").innerHTML = banner("NPTEL Registrations", "Registration and course-status overview.");
     $("primaryHeading").textContent = "Registrations";
     $("primaryContent").innerHTML = tableCards(result?.data?.items || [], "admin-registration");
-    $("profileContent").innerHTML = '<div class="empty">Registration status management can be added here next.</div>';
+    $("profileContent").innerHTML = '<div class="empty">Use Set Exam on a registration to schedule an exam and start automatic result reminders.</div>';
+    bindAdminExamRegistrationButtons();
   }
 
   async function loadAdminExams(force) {
     const result = await cached("/api/v1/admin/exams?page=1&pageSize=50", force);
     setPageTitle("Exams", "Admin portal");
     $("statsGrid").innerHTML = "";
-    $("welcomeBanner").innerHTML = banner("Exam Management", "Track application, schedule, score and pass status.");
+    $("welcomeBanner").innerHTML = banner("Exam Management", "Set the exam date. After the exam, an automatic result-pending notification is sent every 3 days until the score/result is entered.");
     $("primaryHeading").textContent = "Exam Records";
     $("primaryContent").innerHTML = tableCards(result?.data?.items || [], "admin-exam");
-    $("profileContent").innerHTML = '<div class="empty">Exam update actions can be added here next.</div>';
+    $("profileContent").innerHTML = '<div class="empty">Result reminder rule: first reminder 3 days after the exam, then every 3 days until Score or Pass Status is recorded.</div>';
+    bindAdminExamButtons();
   }
 
   async function loadAdminCertificates(force) {
@@ -545,6 +602,12 @@
       if (type === "staff" || type.includes("student")) {
         const id = item.studentId || item.StudentId;
         if (id) action = '<button class="ghost-btn small" data-student="' + id + '">View</button>';
+      }
+      if (type === "admin-registration" && item.registrationId) {
+        action = '<button class="ghost-btn small" data-exam-reg="' + item.registrationId + '">Set Exam</button>';
+      }
+      if (type === "admin-exam" && item.registrationId) {
+        action = '<button class="ghost-btn small" data-exam-edit="' + item.registrationId + '">Edit Exam</button>';
       }
       if (type === "staff-course" && item.certificate?.certificateId && item.certificate?.storagePath) {
         action = '<button class="ghost-btn small" data-cert="' + item.certificate.certificateId + '">Download Certificate</button>';
@@ -733,12 +796,218 @@
       $("welcomeBanner").innerHTML = banner(d?.name || "Student", [d?.registerNumber, d?.department, d?.year ? "Year " + d.year : null, d?.classSection ? "Class " + d.classSection : null].filter(Boolean).join(" · "));
       $("primaryHeading").textContent = "Registrations";
       $("primaryContent").innerHTML = tableCards(d?.registrations || [], "admin-registration");
-      $("profileContent").innerHTML = profileRows(d, ["studentId","name","registerNumber","department","classSection","year","batch","email","phone","isActive"]);
+      $("profileContent").innerHTML = profileRows(d, ["studentId","name","registerNumber","department","classSection","year","semester","academicYear","email","phone","isActive"]);
+      bindAdminExamRegistrationButtons();
     } catch (err) {
       showPageMessage(err.message);
     } finally {
       showLoading(false);
     }
+  }
+
+  function adminStudentCreateForm() {
+    return '<div class="certificate-box admin-form-box">' +
+      '<div class="box-title">Create New Student Account</div>' +
+      '<div class="data-meta">Required account details. Register Number becomes the Student login ID.</div>' +
+      '<div class="form-grid">' +
+      '<div><label>Name</label><input id="newStudentName" class="form-input" placeholder="Student full name" required></div>' +
+      '<div><label>Register Number</label><input id="newStudentReg" class="form-input" placeholder="e.g. 951021104006" required></div>' +
+      '<div><label>Year</label><select id="newStudentYear" class="form-input"><option value="1">Year 1</option><option value="2">Year 2</option><option value="3" selected>Year 3</option><option value="4">Year 4</option></select></div>' +
+      '<div><label>Semester</label><select id="newStudentSemester" class="form-input">' + Array.from({length:8},(_,i)=>'<option value="' + (i+1) + '"' + (i===0?' selected':'') + '>Semester ' + (i+1) + '</option>').join("") + '</select></div>' +
+      '<div><label>Department</label><input id="newStudentDept" class="form-input" value="CSE" placeholder="e.g. CSE"></div>' +
+      '<div><label>Section</label><input id="newStudentSection" class="form-input" value="A" placeholder="e.g. A"></div>' +
+      '<div><label>Academic Year</label><input id="newStudentAcademicYear" class="form-input" value="2026-27" placeholder="e.g. 2026-27"></div>' +
+      '<div><label>Email</label><input id="newStudentEmail" class="form-input" type="email" placeholder="student@college.edu"></div>' +
+      '<div><label>Phone</label><input id="newStudentPhone" class="form-input" type="tel" placeholder="10-digit mobile number"></div>' +
+      '</div>' +
+      '<div class="row-actions"><button class="primary-btn small" id="createStudentBtn">Create Student Account</button></div>' +
+      '<div id="createStudentMessage" class="form-message"></div>' +
+      '</div>';
+  }
+
+  function adminStaffCreateForm() {
+    return '<div class="certificate-box admin-form-box">' +
+      '<div class="box-title">Create New Staff Account</div>' +
+      '<div class="data-meta">Staff ID becomes the login ID. Assign the Year/Class scope for read-only student access.</div>' +
+      '<div class="form-grid">' +
+      '<div><label>Staff Name</label><input id="newStaffName" class="form-input" placeholder="Faculty name" required></div>' +
+      '<div><label>Staff ID</label><input id="newStaffId" class="form-input" placeholder="e.g. CSE-STF-105" required></div>' +
+      '<div><label>Department</label><input id="newStaffDept" class="form-input" value="CSE" placeholder="e.g. CSE"></div>' +
+      '<div><label>Assigned Year</label><select id="newStaffYear" class="form-input"><option value="1">Year 1</option><option value="2">Year 2</option><option value="3" selected>Year 3</option><option value="4">Year 4</option></select></div>' +
+      '<div><label>Assigned Section</label><input id="newStaffSection" class="form-input" value="A" placeholder="e.g. A"></div>' +
+      '<div><label>Email</label><input id="newStaffEmail" class="form-input" type="email" placeholder="faculty@college.edu"></div>' +
+      '</div>' +
+      '<div class="row-actions"><button class="primary-btn small" id="createStaffBtn">Create Staff Account</button></div>' +
+      '<div id="createStaffMessage" class="form-message"></div>' +
+      '</div>';
+  }
+
+  function bindAdminStudentCreate() {
+    const btn = $("createStudentBtn");
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      const message = $("createStudentMessage");
+      const name = $("newStudentName")?.value?.trim();
+      const registerNumber = $("newStudentReg")?.value?.trim();
+      if (!name || !registerNumber) {
+        message.textContent = "Name and Register Number are required.";
+        return;
+      }
+      message.textContent = "Creating student account…";
+      try {
+        const result = await request("/api/v1/admin/students", {
+          method: "POST",
+          body: {
+            name,
+            registerNumber,
+            year: Number($("newStudentYear")?.value || 1),
+            semester: Number($("newStudentSemester")?.value || 1),
+            department: $("newStudentDept")?.value?.trim() || "CSE",
+            classSection: $("newStudentSection")?.value?.trim() || "A",
+            academicYear: $("newStudentAcademicYear")?.value?.trim() || "2026-27",
+            email: $("newStudentEmail")?.value?.trim() || null,
+            phone: $("newStudentPhone")?.value?.trim() || null
+          }
+        });
+        message.className = "form-message success";
+        message.textContent = "Student account created. Login: " + registerNumber + " | Temporary password: Student@Nptel2026";
+        state.cache.delete("/api/v1/admin/students?page=1&pageSize=50");
+        await loadAdminStudents(true);
+      } catch (err) {
+        message.className = "form-message";
+        message.textContent = err.message || "Student creation failed.";
+      }
+    });
+  }
+
+  function bindAdminStaffCreate() {
+    const btn = $("createStaffBtn");
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      const message = $("createStaffMessage");
+      const staffName = $("newStaffName")?.value?.trim();
+      const staffIdentifier = $("newStaffId")?.value?.trim();
+      if (!staffName || !staffIdentifier) {
+        message.textContent = "Staff Name and Staff ID are required.";
+        return;
+      }
+      message.textContent = "Creating staff account…";
+      try {
+        await request("/api/v1/admin/staff", {
+          method: "POST",
+          body: {
+            staffName,
+            staffIdentifier,
+            department: $("newStaffDept")?.value?.trim() || "CSE",
+            assignedYear: Number($("newStaffYear")?.value || 1),
+            assignedClass: $("newStaffSection")?.value?.trim() || "A",
+            email: $("newStaffEmail")?.value?.trim() || null
+          }
+        });
+        message.className = "form-message success";
+        message.textContent = "Staff account created. Login: " + staffIdentifier + " | Temporary password: Staff@Nptel2026";
+        state.cache.delete("/api/v1/admin/staff?page=1&pageSize=50");
+        await loadAdminStaff(true);
+      } catch (err) {
+        message.className = "form-message";
+        message.textContent = err.message || "Staff creation failed.";
+      }
+    });
+  }
+
+  async function openAdminExamEditor(registrationId) {
+    showLoading(true);
+    let exam = {
+      registrationId,
+      examApplicationStatus: "NotStarted",
+      examApplicationDate: "",
+      examApplicationDeadline: "",
+      examDate: "",
+      hallTicketStatus: "",
+      examStatus: "NotStarted",
+      score: "",
+      passStatus: ""
+    };
+    try {
+      const result = await request("/api/v1/admin/exams/registration/" + registrationId);
+      exam = result?.data || exam;
+    } catch (_) {
+      // No exam row yet: UpdateExamAsync will create it.
+    }
+
+    setPageTitle("Set Exam", "Admin portal");
+    $("statsGrid").innerHTML = "";
+    $("welcomeBanner").innerHTML = banner("Exam Schedule & Result Automation", "Save the Exam Date. The system will notify the student 3 days after the exam, then every 3 days until the result is entered.");
+    $("primaryHeading").textContent = "Exam Details";
+    $("primaryContent").innerHTML =
+      '<div class="certificate-box admin-form-box">' +
+      '<div class="box-title">Exam / Result Settings</div>' +
+      '<div class="form-grid">' +
+      '<div><label>Application Status</label><select id="examApplicationStatus" class="form-input"><option>NotStarted</option><option>Pending</option><option>Applied</option><option>Closed</option></select></div>' +
+      '<div><label>Application Date</label><input id="examApplicationDate" class="form-input" type="datetime-local"></div>' +
+      '<div><label>Application Deadline</label><input id="examApplicationDeadline" class="form-input" type="datetime-local"></div>' +
+      '<div><label>Exam Date</label><input id="examDate" class="form-input" type="datetime-local"></div>' +
+      '<div><label>Hall Ticket Status</label><input id="hallTicketStatus" class="form-input" placeholder="Available / Downloaded"></div>' +
+      '<div><label>Exam Status</label><select id="examStatus" class="form-input"><option>NotStarted</option><option>Scheduled</option><option>Completed</option></select></div>' +
+      '<div><label>Score</label><input id="examScore" class="form-input" type="number" min="0" max="100" step="0.01"></div>' +
+      '<div><label>Pass Status</label><select id="examPassStatus" class="form-input"><option value="">Pending</option><option>Pass</option><option>Fail</option></select></div>' +
+      '</div>' +
+      '<div class="row-actions"><button class="primary-btn small" id="saveAdminExam">Save Exam Details</button></div>' +
+      '<div id="adminExamMessage" class="form-message"></div>' +
+      '</div>';
+
+    const setDate = (id, value) => { if (value) $(id).value = new Date(value).toISOString().slice(0,16); };
+    $("examApplicationStatus").value = exam.examApplicationStatus || "NotStarted";
+    setDate("examApplicationDate", exam.examApplicationDate);
+    setDate("examApplicationDeadline", exam.examApplicationDeadline);
+    setDate("examDate", exam.examDate);
+    $("hallTicketStatus").value = exam.hallTicketStatus || "";
+    $("examStatus").value = exam.examStatus || "NotStarted";
+    $("examScore").value = exam.score ?? "";
+    $("examPassStatus").value = exam.passStatus || "";
+
+    $("saveAdminExam").addEventListener("click", async () => {
+      const message = $("adminExamMessage");
+      const toIso = id => $(id)?.value ? new Date($(id).value).toISOString() : null;
+      message.textContent = "Saving exam details…";
+      try {
+        const result = await request("/api/v1/admin/exams/registration/" + registrationId, {
+          method: "PUT",
+          body: {
+            examApplicationStatus: $("examApplicationStatus").value,
+            examApplicationDate: toIso("examApplicationDate"),
+            examApplicationDeadline: toIso("examApplicationDeadline"),
+            examDate: toIso("examDate"),
+            hallTicketStatus: $("hallTicketStatus").value.trim() || null,
+            examStatus: $("examStatus").value,
+            score: $("examScore").value ? Number($("examScore").value) : null,
+            passStatus: $("examPassStatus").value || null
+          }
+        });
+        message.className = "form-message success";
+        message.textContent = result?.message || "Exam details saved. Automatic reminders are active.";
+        state.cache.delete("/api/v1/admin/exams?page=1&pageSize=50");
+        await loadAdminExams(true);
+      } catch (err) {
+        message.className = "form-message";
+        message.textContent = err.message || "Could not save exam details.";
+      }
+    });
+
+    $("profileContent").innerHTML = profileRows(exam, ["studentName","registerNumber","courseName","examDate","examStatus","score","passStatus"]);
+    showLoading(false);
+  }
+
+  function bindAdminExamButtons() {
+    document.querySelectorAll("[data-exam-edit]").forEach(btn => {
+      btn.addEventListener("click", () => openAdminExamEditor(btn.dataset.examEdit));
+    });
+  }
+
+  function bindAdminExamRegistrationButtons() {
+    document.querySelectorAll("[data-exam-reg]").forEach(btn => {
+      btn.addEventListener("click", () => openAdminExamEditor(btn.dataset.examReg));
+    });
   }
 
   function bindStaffExportButtons() {
