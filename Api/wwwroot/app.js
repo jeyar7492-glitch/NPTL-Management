@@ -58,8 +58,28 @@
         state.role === "Student" ? "e.g. 951021104001" :
         state.role === "Staff" ? "e.g. CSE-STF-01" : "e.g. ADM-CSE-01";
       loginMessage.textContent = "";
+      toggleStudentRegistration(false);
     });
   });
+
+  const newStudentLink = $("newStudentLink");
+  const studentRegisterPanel = $("studentRegisterPanel");
+  const backToLoginBtn = $("backToLoginBtn");
+
+  function toggleStudentRegistration(show) {
+    const isStudent = state.role === "Student";
+    if (newStudentLink) newStudentLink.hidden = !isStudent || show;
+    if (studentRegisterPanel) studentRegisterPanel.hidden = !isStudent || !show;
+    $("loginForm").hidden = show;
+    if (!show) {
+      $("registerMessage").textContent = "";
+      return;
+    }
+    $("regName")?.focus();
+  }
+
+  newStudentLink?.addEventListener("click", () => toggleStudentRegistration(true));
+  backToLoginBtn?.addEventListener("click", () => toggleStudentRegistration(false));
 
   $("loginForm").addEventListener("submit", async e => {
     e.preventDefault();
@@ -99,6 +119,65 @@
       loginMessage.textContent = err.message || "Unable to sign in.";
     } finally {
       showLoading(false);
+    }
+  });
+
+  $("createStudentAccountBtn")?.addEventListener("click", async () => {
+    const message = $("registerMessage");
+    const payload = {
+      name: $("regName")?.value?.trim(),
+      registerNumber: $("regNumber")?.value?.trim(),
+      year: Number($("regYear")?.value || 1),
+      semester: Number($("regSemester")?.value || 1),
+      department: $("regDepartment")?.value?.trim() || "CSE",
+      classSection: $("regSection")?.value?.trim() || "A",
+      academicYear: $("regAcademicYear")?.value?.trim() || "2026-27",
+      email: $("regEmail")?.value?.trim(),
+      phone: $("regPhone")?.value?.trim(),
+      password: $("regPassword")?.value || "",
+      confirmPassword: $("regConfirmPassword")?.value || ""
+    };
+
+    if (!payload.name || !payload.registerNumber || !payload.email || !payload.phone) {
+      message.textContent = "Please fill all required student details.";
+      return;
+    }
+    if (payload.password.length < 8) {
+      message.textContent = "Password must be at least 8 characters.";
+      return;
+    }
+    if (payload.password !== payload.confirmPassword) {
+      message.textContent = "Passwords do not match.";
+      return;
+    }
+
+    message.textContent = "Creating student account…";
+    try {
+      const result = await request("/api/v1/auth/student/register", {
+        method: "POST",
+        body: payload,
+        auth: false,
+        timeoutMs: 15000
+      });
+      const data = result?.data;
+      if (!data?.accessToken) throw new Error(result?.message || "Account creation failed.");
+
+      state.token = data.accessToken;
+      state.role = "Student";
+      state.user = data;
+      sessionStorage.setItem("nptel_token", state.token);
+      sessionStorage.setItem("nptel_user", JSON.stringify(state.user));
+      state.cache.clear();
+
+      message.className = "form-message success";
+      message.textContent = result?.message || "Account created successfully.";
+      if ("Notification" in window && Notification.permission === "default") {
+        try { await Notification.requestPermission(); } catch (_) {}
+      }
+      await openDashboard(true);
+    } catch (err) {
+      message.className = "form-message";
+      message.textContent = err.message || "Account creation failed.";
     }
   });
 
@@ -1100,6 +1179,8 @@
     $("pageEyebrow").textContent = "Academic portal";
     $("pageTitle").textContent = "Welcome";
     $("nav").innerHTML = "";
+    toggleStudentRegistration(false);
+    $("newStudentLink").hidden = state.role !== "Student";
   }
 
   function showLoading(_visible) {
