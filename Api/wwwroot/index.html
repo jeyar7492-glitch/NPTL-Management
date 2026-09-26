@@ -76,7 +76,35 @@
               <input id="password" name="password" type="password" autocomplete="current-password" required>
               <button class="primary-btn" type="submit">Sign in</button>
               <div id="loginMessage" class="form-message" role="alert"></div>
+              <button id="newStudentLink" class="link-btn" type="button">New student? Create account</button>
             </form>
+
+            <div id="studentRegisterPanel" hidden>
+              <div class="section-heading">
+                <div>
+                  <span class="section-kicker">New Student</span>
+                  <h3>Create your account</h3>
+                </div>
+              </div>
+              <div class="form-grid">
+                <div><label for="regName">Name</label><input id="regName" class="form-input" placeholder="Full name"></div>
+                <div><label for="regNumber">Register Number</label><input id="regNumber" class="form-input" placeholder="e.g. 951021104006"></div>
+                <div><label for="regYear">Year</label><select id="regYear" class="form-input"><option>1</option><option>2</option><option selected>3</option><option>4</option></select></div>
+                <div><label for="regSemester">Semester</label><select id="regSemester" class="form-input"><option value="1" selected>Semester 1</option><option value="2">Semester 2</option><option value="3">Semester 3</option><option value="4">Semester 4</option><option value="5">Semester 5</option><option value="6">Semester 6</option><option value="7">Semester 7</option><option value="8">Semester 8</option></select></div>
+                <div><label for="regDepartment">Department</label><input id="regDepartment" class="form-input" value="CSE"></div>
+                <div><label for="regSection">Section</label><input id="regSection" class="form-input" value="A"></div>
+                <div><label for="regAcademicYear">Academic Year</label><input id="regAcademicYear" class="form-input" value="2026-27"></div>
+                <div><label for="regEmail">Email</label><input id="regEmail" class="form-input" type="email" placeholder="you@college.edu"></div>
+                <div><label for="regPhone">Phone</label><input id="regPhone" class="form-input" type="tel" placeholder="10-digit mobile"></div>
+                <div><label for="regPassword">Password</label><input id="regPassword" class="form-input" type="password" placeholder="Minimum 8 characters"></div>
+                <div><label for="regConfirmPassword">Confirm Password</label><input id="regConfirmPassword" class="form-input" type="password"></div>
+              </div>
+              <div class="row-actions">
+                <button id="createStudentAccountBtn" class="primary-btn small" type="button">Create Account</button>
+                <button id="backToLoginBtn" class="ghost-btn small" type="button">Back to Login</button>
+              </div>
+              <div id="registerMessage" class="form-message" role="alert"></div>
+            </div>
           </div>
         </div>
       </section>
