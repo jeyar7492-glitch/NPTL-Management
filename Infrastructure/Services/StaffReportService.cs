@@ -215,10 +215,10 @@ public class StaffReportService : IStaffReportService
 
     private static string EscapeCsv(string value)
     {
-        if (string.IsNullOrEmpty(value)) return """";
+        if (string.IsNullOrEmpty(value)) return "\"\"";
         if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
-            return $""{value.Replace(""", """")}"";
-        return $""{value}"";
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        return $"\"{value}\"";
     }
 
 }
