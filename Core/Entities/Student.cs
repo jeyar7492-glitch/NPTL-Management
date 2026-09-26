@@ -9,6 +9,8 @@ public class Student
     public string Department { get; set; } = string.Empty;
     public string? ClassSection { get; set; }
     public int Year { get; set; }
+    public int Semester { get; set; }
+    public string? AcademicYear { get; set; }
     public string? Batch { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
