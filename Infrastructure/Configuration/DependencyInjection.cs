@@ -128,7 +128,6 @@ public static class DependencyInjection
         var supabaseStorageConfigured =
             !string.IsNullOrWhiteSpace(configuration["SUPABASE_URL"]) &&
             (!string.IsNullOrWhiteSpace(configuration["SUPABASE_STORAGE_SERVICE_ROLE_KEY"]) ||
-             !string.IsNullOrWhiteSpace(configuration["SUPABASE_SERVICE_KEY"]) ||
              !string.IsNullOrWhiteSpace(configuration["SUPABASE_SERVICE_ROLE_KEY"]));
 
         if (useInMemory && !supabaseStorageConfigured)
