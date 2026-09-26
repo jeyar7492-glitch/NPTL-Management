@@ -122,8 +122,24 @@ public static class DependencyInjection
         services.AddScoped<IStaffStudentService, Services.StaffStudentService>();
         services.AddScoped<IStaffReportService, Services.StaffReportService>();
 
-        // Phase 4 - Real Private Cloud Object Storage & Audit Logging
-        services.AddHttpClient<IPrivateCloudStorageService, Storage.SupabasePrivateStorageService>();
+        // Phase 4 - Private Cloud Object Storage & Audit Logging.
+        // Local demo mode can use an in-memory file provider when real Supabase storage
+        // credentials are not configured. Production always uses real Supabase storage.
+        var supabaseStorageConfigured =
+            !string.IsNullOrWhiteSpace(configuration["SUPABASE_URL"]) &&
+            (!string.IsNullOrWhiteSpace(configuration["SUPABASE_STORAGE_SERVICE_ROLE_KEY"]) ||
+             !string.IsNullOrWhiteSpace(configuration["SUPABASE_SERVICE_KEY"]) ||
+             !string.IsNullOrWhiteSpace(configuration["SUPABASE_SERVICE_ROLE_KEY"]));
+
+        if (useInMemory && !supabaseStorageConfigured)
+        {
+            services.AddSingleton<IPrivateCloudStorageService, Storage.OfflineMockStorageService>();
+        }
+        else
+        {
+            services.AddHttpClient<IPrivateCloudStorageService, Storage.SupabasePrivateStorageService>();
+        }
+
         services.AddScoped<IAuditLogService, Services.AuditLogService>();
 
         // Phase 4 - Admin Management Services
