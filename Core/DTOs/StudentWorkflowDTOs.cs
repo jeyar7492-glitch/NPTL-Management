@@ -52,10 +52,15 @@ public class StudentCertificateDto
     public Guid CertificateId { get; set; }
     public string VerifiedStatus { get; set; } = string.Empty;
     public string? StoragePath { get; set; }
+    public string? CertificateNumber { get; set; }
+    public decimal? Score { get; set; }
+    public string? PassStatus { get; set; }
     public DateTime? SubmittedDate { get; set; }
     public DateTime? IssuedDate { get; set; }
     public DateTime? VerifiedDate { get; set; }
     public DateTime? ReceivedDate { get; set; }
+    public bool ReminderEnabled { get; set; }
+    public DateTime? ReminderDate { get; set; }
 }
 
 public class StudentCourseDetailsDto
@@ -73,6 +78,20 @@ public class StudentCourseDetailsDto
     public StudentExamDto? Exam { get; set; }
     public StudentCertificateDto? Certificate { get; set; }
     public List<StudentTimelineItemDto> Timeline { get; set; } = new();
+}
+
+public class StudentCertificateReminderDto
+{
+    public bool Enabled { get; set; }
+    public DateTime? ReminderDate { get; set; }
+}
+
+public class StudentCertificateReminderResponseDto
+{
+    public Guid RegistrationId { get; set; }
+    public bool Enabled { get; set; }
+    public DateTime? ReminderDate { get; set; }
+    public string Message { get; set; } = string.Empty;
 }
 
 public class StudentNotificationDto
