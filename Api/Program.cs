@@ -214,12 +214,22 @@ if (!string.IsNullOrWhiteSpace(containerPort))
 
 var app = builder.Build();
 
-// Seed initial development/test records if in-memory database or explicit --seed-db flag
-if (app.Configuration.GetValue<bool>("USE_INMEMORY_DB") || args.Contains("--seed-db"))
+// Optional first-run production bootstrap for an empty Supabase database.
+// Enable with AUTO_INITIALIZE_DB=true for the initial deployment only.
+// This creates the EF Core schema, then inserts the built-in demo/admin/staff/student records.
+if (app.Configuration.GetValue<bool>("AUTO_INITIALIZE_DB") ||
+    app.Configuration.GetValue<bool>("USE_INMEMORY_DB") ||
+    args.Contains("--seed-db"))
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<NPTELManagement.Infrastructure.Data.ApplicationDbContext>();
     var hasher = scope.ServiceProvider.GetRequiredService<NPTELManagement.Core.Interfaces.IPasswordHasher>();
+
+    if (app.Configuration.GetValue<bool>("AUTO_INITIALIZE_DB") && !app.Configuration.GetValue<bool>("USE_INMEMORY_DB"))
+    {
+        await dbContext.Database.EnsureCreatedAsync();
+    }
+
     await NPTELManagement.Infrastructure.Data.DatabaseSeeder.SeedAsync(dbContext, hasher);
 }
 
