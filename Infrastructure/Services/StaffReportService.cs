@@ -99,7 +99,11 @@ public class StaffReportService : IStaffReportService
                         CourseCode = reg.Course?.CourseCode ?? "—",
                         RegistrationStatus = reg.Status.ToString(),
                         ExamStatus = examSummary,
-                        CertificateStatus = certSummary
+                        CertificateStatus = certSummary,
+                        CertificateNumber = reg.Certificate?.CertificateNumber,
+                        CertificateScore = reg.Certificate?.Score,
+                        CertificatePassStatus = reg.Certificate?.PassStatus,
+                        CertificateSubmittedDate = reg.Certificate?.SubmittedDate?.ToString("yyyy-MM-dd")
                     });
                 }
             }
@@ -117,4 +121,104 @@ public class StaffReportService : IStaffReportService
             Items = items
         };
     }
+    public async Task<byte[]> GenerateCsvAsync(
+        Guid staffUserId,
+        string reportType,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await GetReportPreviewAsync(staffUserId, reportType, cancellationToken);
+        if (report == null) throw new KeyNotFoundException("Staff context not found.");
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("S.No,Student Name,Register Number,Department,Year,Class Section,Course Code,Course Name,Registration Status,Exam Status,Certificate Status,Certificate Number,Certificate Score,Certificate Pass Status,Certificate Submitted Date");
+
+        for (var i = 0; i < report.Items.Count; i++)
+        {
+            var item = report.Items[i];
+            sb.AppendLine(string.Join(",",
+                i + 1,
+                EscapeCsv(item.StudentName),
+                EscapeCsv(item.RegisterNumber),
+                EscapeCsv(item.Department),
+                item.Year,
+                EscapeCsv(item.ClassSection ?? ""),
+                EscapeCsv(item.CourseCode),
+                EscapeCsv(item.CourseName),
+                EscapeCsv(item.RegistrationStatus),
+                EscapeCsv(item.ExamStatus),
+                EscapeCsv(item.CertificateStatus),
+                EscapeCsv(item.CertificateNumber ?? ""),
+                item.CertificateScore?.ToString("0.##") ?? "",
+                EscapeCsv(item.CertificatePassStatus ?? ""),
+                EscapeCsv(item.CertificateSubmittedDate ?? "")));
+        }
+
+        return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+    }
+
+    public async Task<byte[]> GenerateXlsxAsync(
+        Guid staffUserId,
+        string reportType,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await GetReportPreviewAsync(staffUserId, reportType, cancellationToken);
+        if (report == null) throw new KeyNotFoundException("Staff context not found.");
+
+        using var workbook = new ClosedXML.Excel.XLWorkbook();
+        var ws = workbook.Worksheets.Add("Staff NPTEL Details");
+
+        var headers = new[]
+        {
+            "S.No","Student Name","Register Number","Department","Year","Class Section",
+            "Course Code","Course Name","Registration Status","Exam Status","Certificate Status",
+            "Certificate Number","Certificate Score","Certificate Pass Status","Certificate Submitted Date"
+        };
+
+        ws.Cell(1,1).Value = "NPTEL MANAGEMENT SYSTEM - STAFF BULK DETAILS";
+        ws.Cell(1,1).Style.Font.Bold = true;
+        ws.Cell(1,1).Style.Font.FontSize = 14;
+        ws.Range(1,1,1,headers.Length).Merge();
+
+        ws.Cell(2,1).Value = $"Scope: {report.Department} | Year {report.Year} | Class {report.ClassSection ?? "All"} | Generated: {report.GeneratedAt:yyyy-MM-dd HH:mm:ss} UTC";
+        ws.Cell(2,1).Style.Font.Italic = true;
+        ws.Range(2,1,2,headers.Length).Merge();
+
+        for (var i = 0; i < headers.Length; i++)
+        {
+            ws.Cell(4,i+1).Value = headers[i];
+            ws.Cell(4,i+1).Style.Font.Bold = true;
+            ws.Cell(4,i+1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromHtml("#1E3A8A");
+            ws.Cell(4,i+1).Style.Font.FontColor = ClosedXML.Excel.XLColor.White;
+        }
+
+        for (var i = 0; i < report.Items.Count; i++)
+        {
+            var item = report.Items[i];
+            var row = i + 5;
+            var values = new object?[]
+            {
+                i + 1, item.StudentName, item.RegisterNumber, item.Department, item.Year,
+                item.ClassSection ?? "", item.CourseCode, item.CourseName, item.RegistrationStatus,
+                item.ExamStatus, item.CertificateStatus, item.CertificateNumber ?? "",
+                item.CertificateScore.HasValue ? (double)item.CertificateScore.Value : null,
+                item.CertificatePassStatus ?? "", item.CertificateSubmittedDate ?? ""
+            };
+            for (var col = 0; col < values.Length; col++) ws.Cell(row, col + 1).Value = values[col] ?? "";
+        }
+
+        ws.Columns().AdjustToContents();
+
+        using var ms = new MemoryStream();
+        workbook.SaveAs(ms);
+        return ms.ToArray();
+    }
+
+    private static string EscapeCsv(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return """";
+        if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
+            return $""{value.Replace(""", """")}"";
+        return $""{value}"";
+    }
+
 }
