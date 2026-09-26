@@ -16,6 +16,18 @@
   const roleTabs = [...document.querySelectorAll(".role-tab")];
 
   const baseUrl = window.NPTEL_API_URL || "";
+  const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+  if (isLocal && "serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(r => r.unregister()));
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      } catch (_) {}
+    });
+  }
 
   window.addEventListener("beforeinstallprompt", e => {
     e.preventDefault();
@@ -102,11 +114,25 @@
     const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
     if (opts.auth !== false && state.token) headers.Authorization = "Bearer " + state.token;
 
-    const response = await fetch(baseUrl + path, {
-      method: opts.method || "GET",
-      headers,
-      body: opts.body && !(opts.body instanceof FormData) ? JSON.stringify(opts.body) : opts.body
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), opts.timeoutMs || 12000);
+
+    let response;
+    try {
+      response = await fetch(baseUrl + path, {
+        method: opts.method || "GET",
+        headers,
+        body: opts.body && !(opts.body instanceof FormData) ? JSON.stringify(opts.body) : opts.body,
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        throw new Error("API request timed out: " + path);
+      }
+      throw new Error("Could not connect to the NPTEL API: " + (error?.message || "network error"));
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const text = await response.text();
     let json = null;
@@ -642,8 +668,9 @@
     $("nav").innerHTML = "";
   }
 
-  function showLoading(visible) {
-    loadingView.hidden = !visible;
+  function showLoading(_visible) {
+    // Navigation must remain clickable even while API requests are running.
+    loadingView.hidden = true;
   }
 
   async function checkApi() {
@@ -655,7 +682,7 @@
     }
   }
 
-  if ("serviceWorker" in navigator) {
+  if ("serviceWorker" in navigator && !isLocal) {
     window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
   }
 
