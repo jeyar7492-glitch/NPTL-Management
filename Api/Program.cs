@@ -229,6 +229,11 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 // Process forwarded headers before HTTPS redirection to prevent redirect loops behind reverse proxies
 app.UseForwardedHeaders();
 
+// Serve the browser/PWA client from Api/wwwroot on the same origin as the API.
+// This keeps browser authentication same-origin and avoids a separate frontend server.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 // Enforce HTTPS redirection and HSTS in non-development environments
 if (!app.Environment.IsDevelopment())
 {
