@@ -87,6 +87,8 @@ public class AdminStudentService : IAdminStudentService
                 Department = st.Department,
                 ClassSection = st.ClassSection,
                 Year = st.Year,
+                Semester = st.Semester,
+                AcademicYear = st.AcademicYear,
                 Batch = st.Batch,
                 Email = st.Email,
                 Phone = st.Phone,
@@ -132,6 +134,8 @@ public class AdminStudentService : IAdminStudentService
             Department = student.Department,
             ClassSection = student.ClassSection,
             Year = student.Year,
+            Semester = student.Semester,
+            AcademicYear = student.AcademicYear,
             Batch = student.Batch,
             Email = student.Email,
             Phone = student.Phone,
@@ -167,6 +171,10 @@ public class AdminStudentService : IAdminStudentService
             throw new ArgumentException("Register number is required.");
         if (dto.Year < 1 || dto.Year > 4)
             throw new ArgumentException("Year must be between 1 and 4.");
+        if (dto.Semester < 1 || dto.Semester > 8)
+            throw new ArgumentException("Semester must be between 1 and 8.");
+        if (string.IsNullOrWhiteSpace(dto.AcademicYear))
+            throw new ArgumentException("Academic year is required.");
 
         var cleanReg = dto.RegisterNumber.Trim();
         if (await _context.Students.AnyAsync(s => s.RegisterNumber == cleanReg, cancellationToken) ||
@@ -200,6 +208,8 @@ public class AdminStudentService : IAdminStudentService
             Department = !string.IsNullOrWhiteSpace(dto.Department) ? dto.Department.Trim() : "CSE",
             ClassSection = dto.ClassSection?.Trim() ?? "A",
             Year = dto.Year,
+            Semester = dto.Semester,
+            AcademicYear = dto.AcademicYear.Trim(),
             Batch = dto.Batch?.Trim(),
             Email = dto.Email?.Trim(),
             Phone = dto.Phone?.Trim(),
@@ -227,6 +237,8 @@ public class AdminStudentService : IAdminStudentService
             Department = student.Department,
             ClassSection = student.ClassSection,
             Year = student.Year,
+            Semester = student.Semester,
+            AcademicYear = student.AcademicYear,
             Batch = student.Batch,
             Email = student.Email,
             Phone = student.Phone,
@@ -249,11 +261,15 @@ public class AdminStudentService : IAdminStudentService
             throw new ArgumentException("Student name is required.");
         if (dto.Year < 1 || dto.Year > 4)
             throw new ArgumentException("Year must be between 1 and 4.");
+        if (dto.Semester < 1 || dto.Semester > 8)
+            throw new ArgumentException("Semester must be between 1 and 8.");
 
         student.Name = dto.Name.Trim();
         student.Department = !string.IsNullOrWhiteSpace(dto.Department) ? dto.Department.Trim() : student.Department;
         student.ClassSection = dto.ClassSection?.Trim() ?? student.ClassSection;
         student.Year = dto.Year;
+        student.Semester = dto.Semester;
+        student.AcademicYear = string.IsNullOrWhiteSpace(dto.AcademicYear) ? student.AcademicYear : dto.AcademicYear.Trim();
         student.Batch = dto.Batch?.Trim();
         student.Email = dto.Email?.Trim();
         student.Phone = dto.Phone?.Trim();
