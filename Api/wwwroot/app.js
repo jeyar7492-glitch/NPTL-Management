@@ -111,7 +111,8 @@
   $("refreshBtn").addEventListener("click", () => loadPage(state.currentPage, true));
 
   async function request(path, opts = {}) {
-    const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+    const isFormData = opts.body instanceof FormData;
+    const headers = { ...(isFormData ? {} : { "Content-Type": "application/json" }), ...(opts.headers || {}) };
     if (opts.auth !== false && state.token) headers.Authorization = "Bearer " + state.token;
 
     const controller = new AbortController();
@@ -122,7 +123,7 @@
       response = await fetch(baseUrl + path, {
         method: opts.method || "GET",
         headers,
-        body: opts.body && !(opts.body instanceof FormData) ? JSON.stringify(opts.body) : opts.body,
+        body: opts.body && !isFormData ? JSON.stringify(opts.body) : opts.body,
         signal: controller.signal
       });
     } catch (error) {
@@ -257,6 +258,8 @@
       $("primaryHeading").textContent = "Course Timeline";
       $("primaryContent").innerHTML = courseDetailView(d);
       $("profileContent").innerHTML = examAndCertificateView(d, true);
+      bindCertificateAccessButtons();
+      bindStudentUploadButton(registrationId);
     } catch (err) {
       showPageMessage(err.message);
     } finally {
@@ -309,6 +312,7 @@
       $("primaryHeading").textContent = "NPTEL Courses";
       $("primaryContent").innerHTML = tableCards(d?.courses || [], "staff-course");
       $("profileContent").innerHTML = profileRows(d, ["studentId","name","registerNumber","department","classSection","year","batch","email","phone"]);
+      bindCertificateAccessButtons();
     } catch (err) {
       showPageMessage(err.message);
     } finally {
@@ -509,6 +513,9 @@
       } else if (type === "staff") {
         title = item.staffName || "Staff";
         meta = [item.staffIdentifier, item.department, item.assignedYear ? "Year " + item.assignedYear : null, item.assignedClass ? "Class " + item.assignedClass : null].filter(Boolean);
+      } else if (type === "staff-course") {
+        title = item.courseName || "Course";
+        meta = [item.courseCode, item.registrationStatus, item.currentTimelineStatus, item.exam?.examStatus, item.certificate?.verifiedStatus].filter(Boolean);
       } else if (type.includes("course")) {
         title = item.courseName || "Course";
         meta = [item.courseCode, item.status, item.durationWeeks ? item.durationWeeks + " weeks" : null].filter(Boolean);
@@ -533,6 +540,9 @@
         const id = item.studentId || item.StudentId;
         if (id) action = '<button class="ghost-btn small" data-student="' + id + '">View</button>';
       }
+      if (type === "staff-course" && item.certificate?.certificateId && item.certificate?.storagePath) {
+        action = '<button class="ghost-btn small" data-cert="' + item.certificate.certificateId + '">Download Certificate</button>';
+      }
       if (type.includes("certificate") && item.certificateId && item.hasFile) {
         action = '<button class="ghost-btn small" data-cert="' + item.certificateId + '">Open</button>';
       }
@@ -543,16 +553,34 @@
 
   function examAndCertificateView(d, allowStudent) {
     const e = d?.exam || {};
-    const c = d?.certificate || {};
-    const certBtn = allowStudent && c.certificateId
-      ? '<button class="ghost-btn small" data-cert="' + c.certificateId + '">Open Certificate</button>'
-      : "";
-    return '<div class="profile-list">' +
-      '<div class="profile-row"><span>Exam</span><span>' + escapeHtml([e.examStatus,e.hallTicketStatus,e.passStatus,e.score != null ? "Score " + e.score : null].filter(Boolean).join(" · ") || "Not available") + '</span></div>' +
-      '<div class="profile-row"><span>Certificate</span><span>' + escapeHtml(c.verifiedStatus || "Not available") + '</span></div>' +
-      '<div class="row-actions">' + certBtn + '</div></div>';
-  }
+    const certificate = d?.certificate || {};
+    const certStatus = certificate.verifiedStatus || "Pending";
 
+    let uploadBlock = "";
+    if (allowStudent && certificate.certificateId && !["Verified", "Received"].includes(certStatus)) {
+      uploadBlock =
+        '<div class="upload-box">' +
+        '<div><strong>Submit NPTEL Certificate</strong><div class="data-meta">PDF only, maximum 10 MB. Staff will verify after submission.</div></div>' +
+        '<input id="certificateFile" type="file" accept=".pdf,application/pdf">' +
+        '<button class="primary-btn small" id="uploadCertificateBtn" data-registration="' + escapeHtml(d.registrationId) + '">Upload Certificate</button>' +
+        '<div id="uploadMessage" class="form-message"></div>' +
+        '</div>';
+    }
+
+    const existingAccess =
+      certificate.certificateId && certificate.storagePath
+        ? '<button class="ghost-btn small" data-cert="' + certificate.certificateId + '">Open Submitted Certificate</button>'
+        : "";
+
+    return '<div class="profile-list">' +
+      '<div class="profile-row"><span>Exam</span><span>' +
+      escapeHtml([e.examStatus,e.hallTicketStatus,e.passStatus,e.score != null ? "Score " + e.score : null].filter(Boolean).join(" · ") || "Not available") +
+      '</span></div>' +
+      '<div class="profile-row"><span>Certificate Status</span><span>' + escapeHtml(certStatus) + '</span></div>' +
+      '<div class="row-actions">' + existingAccess + '</div>' +
+      uploadBlock +
+      '</div>';
+  }
   function courseDetailView(d) {
     const items = d?.timeline || [];
     if (!items.length) return '<div class="empty">No timeline records.</div>';
@@ -578,6 +606,39 @@
     return '<div class="profile-list">' + rows.map(k =>
       '<div class="profile-row"><span>' + prettyKey(k) + '</span><span>' + escapeHtml(formatValue(obj[k])) + '</span></div>'
     ).join("") + '</div>';
+  }
+
+  function bindStudentUploadButton(registrationId) {
+    const btn = $("uploadCertificateBtn");
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      const fileInput = $("certificateFile");
+      const message = $("uploadMessage");
+      const file = fileInput?.files?.[0];
+      if (!file) {
+        message.textContent = "Please select a PDF certificate.";
+        return;
+      }
+
+      message.textContent = "Uploading certificate…";
+      const form = new FormData();
+      form.append("file", file, file.name);
+
+      try {
+        const result = await request("/api/v1/student/courses/" + registrationId + "/certificate/upload", {
+          method: "POST",
+          body: form,
+          timeoutMs: 30000
+        });
+        message.className = "form-message success";
+        message.textContent = result?.message || "Certificate uploaded successfully.";
+        state.cache.delete("/api/v1/student/courses/" + registrationId);
+        await openStudentCourse(registrationId);
+      } catch (err) {
+        message.className = "form-message";
+        message.textContent = err.message || "Certificate upload failed.";
+      }
+    });
   }
 
   function bindCourseButtons(items) {
