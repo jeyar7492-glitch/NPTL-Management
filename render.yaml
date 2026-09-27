@@ -1,5 +1,6 @@
 # NPTEL Management System - Render Blueprint
-# Uses the existing Render Postgres database so no Supabase DB password is required.
+# The existing Render Postgres resource is declared here so the Blueprint can
+# manage the existing database and inject its connection string into the web service.
 
 services:
   - type: web
@@ -7,8 +8,8 @@ services:
     runtime: docker
     repo: https://github.com/jeyar7492-glitch/NPTL-Management
     branch: pwa-phase1
-    dockerfilePath: ./Dockerfile
     dockerContext: .
+    dockerfilePath: ./Dockerfile
     plan: free
     region: oregon
     autoDeploy: true
@@ -30,3 +31,10 @@ services:
         fromDatabase:
           name: NPTL-Management-DB
           property: connectionString
+
+databases:
+  - name: NPTL-Management-DB
+    plan: free
+    region: oregon
+    version: 17
+    diskSizeGB: 1
