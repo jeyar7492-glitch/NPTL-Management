@@ -16,68 +16,6 @@ public static class DatabaseSeeder
             await SeedCleanAsync(context, passwordHasher);
             return;
         }
-        private static async Task SeedCleanAsync(ApplicationDbContext context, IPasswordHasher passwordHasher)
-    {
-        // Clean profile intentionally creates only the minimum admin/bootstrap data.
-        // No demo students, demo staff, demo courses, registrations, exams, certificates,
-        // notifications, or audit records are inserted.
-        if (!await context.Departments.AnyAsync(d => d.Code == "CSE"))
-        {
-            context.Departments.Add(new Department
-            {
-                DepartmentId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-                Code = "CSE",
-                Name = "Computer Science and Engineering"
-            });
-        }
-
-        if (!await context.Classes.AnyAsync())
-        {
-            context.Classes.AddRange(
-                new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222201"), Department = "CSE", Year = 1, Section = "A" },
-                new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222202"), Department = "CSE", Year = 2, Section = "A" },
-                new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222203"), Department = "CSE", Year = 3, Section = "A" },
-                new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222204"), Department = "CSE", Year = 4, Section = "A" }
-            );
-        }
-
-        if (!await context.Classes.AnyAsync(c => c.Department == "CSE" && c.Year == 3 && c.Section == "B"))
-        {
-            context.Classes.Add(new ClassEntity
-            {
-                ClassId = Guid.Parse("22222222-2222-2222-2222-222222222205"),
-                Department = "CSE",
-                Year = 3,
-                Section = "B"
-            });
-        }
-
-        await context.SaveChangesAsync();
-
-        var adminUserId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-        if (!await context.Users.AnyAsync(u => u.Username == "admin_cse_01"))
-        {
-            context.Users.Add(new User
-            {
-                Id = adminUserId,
-                Username = "admin_cse_01",
-                PasswordHash = passwordHasher.HashPassword("Admin@Nptel2026"),
-                Role = UserRole.Admin,
-                Email = "admin.cse@college.edu",
-                IsActive = true
-            });
-
-            context.Admins.Add(new Admin
-            {
-                AdminId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa01"),
-                UserId = adminUserId,
-                AdminIdentifier = "ADM-CSE-01"
-            });
-
-            await context.SaveChangesAsync();
-        }
-    }
-
     // 1. Department
         if (!await context.Departments.AnyAsync(d => d.Code == "CSE"))
         {
@@ -729,4 +667,66 @@ public static class DatabaseSeeder
             await context.SaveChangesAsync();
         }
     }
+    private static async Task SeedCleanAsync(ApplicationDbContext context, IPasswordHasher passwordHasher)
+{
+    // Clean profile intentionally creates only the minimum admin/bootstrap data.
+    // No demo students, demo staff, demo courses, registrations, exams, certificates,
+    // notifications, or audit records are inserted.
+    if (!await context.Departments.AnyAsync(d => d.Code == "CSE"))
+    {
+        context.Departments.Add(new Department
+        {
+            DepartmentId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Code = "CSE",
+            Name = "Computer Science and Engineering"
+        });
+    }
+
+    if (!await context.Classes.AnyAsync())
+    {
+        context.Classes.AddRange(
+            new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222201"), Department = "CSE", Year = 1, Section = "A" },
+            new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222202"), Department = "CSE", Year = 2, Section = "A" },
+            new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222203"), Department = "CSE", Year = 3, Section = "A" },
+            new ClassEntity { ClassId = Guid.Parse("22222222-2222-2222-2222-222222222204"), Department = "CSE", Year = 4, Section = "A" }
+        );
+    }
+
+    if (!await context.Classes.AnyAsync(c => c.Department == "CSE" && c.Year == 3 && c.Section == "B"))
+    {
+        context.Classes.Add(new ClassEntity
+        {
+            ClassId = Guid.Parse("22222222-2222-2222-2222-222222222205"),
+            Department = "CSE",
+            Year = 3,
+            Section = "B"
+        });
+    }
+
+    await context.SaveChangesAsync();
+
+    var adminUserId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    if (!await context.Users.AnyAsync(u => u.Username == "admin_cse_01"))
+    {
+        context.Users.Add(new User
+        {
+            Id = adminUserId,
+            Username = "admin_cse_01",
+            PasswordHash = passwordHasher.HashPassword("Admin@Nptel2026"),
+            Role = UserRole.Admin,
+            Email = "admin.cse@college.edu",
+            IsActive = true
+        });
+
+        context.Admins.Add(new Admin
+        {
+            AdminId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa01"),
+            UserId = adminUserId,
+            AdminIdentifier = "ADM-CSE-01"
+        });
+
+        await context.SaveChangesAsync();
+    }
+}
+
 }
