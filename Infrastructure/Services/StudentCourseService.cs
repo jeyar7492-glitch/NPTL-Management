@@ -87,6 +87,56 @@ public class StudentCourseService : IStudentCourseService
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<StudentCourseDetailsDto> AddAndRegisterCourseAsync(
+        Guid studentId,
+        Guid userId,
+        AddStudentCourseDto dto,
+        string? ipAddress,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.CourseCode))
+            throw new ArgumentException("Course code is required.");
+        if (string.IsNullOrWhiteSpace(dto.CourseName))
+            throw new ArgumentException("Course name is required.");
+        if (dto.DurationWeeks <= 0 || dto.DurationWeeks > 52)
+            throw new ArgumentException("Duration must be between 1 and 52 weeks.");
+        if (dto.CourseStartDate.HasValue && dto.CourseEndDate.HasValue && dto.CourseEndDate < dto.CourseStartDate)
+            throw new ArgumentException("Course end date cannot be earlier than the start date.");
+
+        var cleanCode = dto.CourseCode.Trim().ToUpperInvariant();
+        var existing = await _context.Courses
+            .FirstOrDefaultAsync(c => c.CourseCode.ToUpper() == cleanCode, cancellationToken);
+
+        if (existing != null)
+        {
+            var alreadyRegistered = await _context.NptelRegistrations
+                .AnyAsync(r => r.StudentId == studentId && r.CourseId == existing.CourseId, cancellationToken);
+
+            if (alreadyRegistered)
+                throw new InvalidOperationException("You are already registered for this course.");
+
+            return await RegisterForCourseAsync(studentId, existing.CourseId, userId, ipAddress, cancellationToken);
+        }
+
+        var course = new Course
+        {
+            CourseId = Guid.NewGuid(),
+            CourseCode = cleanCode,
+            CourseName = dto.CourseName.Trim(),
+            DurationWeeks = dto.DurationWeeks,
+            CourseStartDate = dto.CourseStartDate,
+            CourseEndDate = dto.CourseEndDate,
+            Status = "Active",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _context.Courses.Add(course);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return await RegisterForCourseAsync(studentId, course.CourseId, userId, ipAddress, cancellationToken);
+    }
+
     public async Task<StudentCourseDetailsDto> RegisterForCourseAsync(
         Guid studentId,
         Guid courseId,
