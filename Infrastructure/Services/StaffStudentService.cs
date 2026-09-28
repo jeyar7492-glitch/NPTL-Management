@@ -288,6 +288,9 @@ public class StaffStudentService : IStaffStudentService
                     RegistrationDate = r.EnrollmentDate,
                     CourseStartDate = r.Course?.CourseStartDate,
                     CourseEndDate = r.Course?.CourseEndDate,
+                    CourseCycle = r.Course?.CourseCycle,
+                    ExamStartDate = r.Course?.ExamStartDate,
+                    ExamEndDate = r.Course?.ExamEndDate,
                     RegistrationStatus = r.Status.ToString(),
                     CurrentTimelineStatus = currentTimeline,
                     Exam = r.ExamStatus != null ? new StudentExamDto
