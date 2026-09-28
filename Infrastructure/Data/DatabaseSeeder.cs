@@ -705,6 +705,36 @@ public static class DatabaseSeeder
 
     await context.SaveChangesAsync();
 
+    var course1Id = Guid.Parse("33333333-3333-3333-3333-333333333301");
+    if (!await context.Courses.AnyAsync(c => c.CourseId == course1Id))
+    {
+        context.Courses.Add(new Course
+        {
+            CourseId = course1Id,
+            CourseCode = "noc24-cs01",
+            CourseName = "Programming in Java",
+            DurationWeeks = 12,
+            CourseStartDate = DateTime.UtcNow.Date.AddDays(-14),
+            CourseEndDate = DateTime.UtcNow.Date.AddDays(70)
+        });
+    }
+
+    var course2Id = Guid.Parse("33333333-3333-3333-3333-333333333302");
+    if (!await context.Courses.AnyAsync(c => c.CourseId == course2Id))
+    {
+        context.Courses.Add(new Course
+        {
+            CourseId = course2Id,
+            CourseCode = "noc24-cs02",
+            CourseName = "Design and Analysis of Algorithms",
+            DurationWeeks = 8,
+            CourseStartDate = DateTime.UtcNow.Date.AddDays(-7),
+            CourseEndDate = DateTime.UtcNow.Date.AddDays(49)
+        });
+    }
+
+    await context.SaveChangesAsync();
+
     var adminUserId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     if (!await context.Users.AnyAsync(u => u.Username == "admin_cse_01"))
     {
