@@ -114,13 +114,12 @@ public class StudentCourseService : IStudentCourseService
 
         var cleanCode = dto.CourseCode.Trim().ToUpperInvariant();
         var existing = await _context.Courses
-            .FirstOrDefaultAsync(c => c.CourseCode.ToUpper() == cleanCode, cancellationToken);
+            .FirstOrDefaultAsync(c => c.CreatedByStudentId == studentId &&
+                                      c.CourseCode.ToUpper() == cleanCode,
+                                  cancellationToken);
 
         if (existing != null)
         {
-            if (existing.CreatedByStudentId.HasValue && existing.CreatedByStudentId != studentId)
-                throw new InvalidOperationException("That course code belongs to another student's private course. Please use the course details you entered.");
-
             var alreadyRegistered = await _context.NptelRegistrations
                 .AnyAsync(r => r.StudentId == studentId && r.CourseId == existing.CourseId, cancellationToken);
 
