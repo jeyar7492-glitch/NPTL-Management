@@ -37,6 +37,9 @@ public class AvailableCourseDto
     public int DurationWeeks { get; set; }
     public DateTime? CourseStartDate { get; set; }
     public DateTime? CourseEndDate { get; set; }
+    public string? CourseCycle { get; set; }
+    public DateTime? ExamStartDate { get; set; }
+    public DateTime? ExamEndDate { get; set; }
 }
 
 public class StudentCourseDto
@@ -103,6 +106,10 @@ public class StudentCourseDetailsDto
     public int DurationWeeks { get; set; }
     public DateTime? CourseStartDate { get; set; }
     public DateTime? CourseEndDate { get; set; }
+    public string? CourseCycle { get; set; }
+    public DateTime? ExamStartDate { get; set; }
+    public DateTime? ExamEndDate { get; set; }
+    public bool CanEditDetails { get; set; }
     public DateTime EnrollmentDate { get; set; }
     public string RegistrationStatus { get; set; } = string.Empty;
 
