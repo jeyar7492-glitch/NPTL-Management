@@ -228,6 +228,24 @@ if (app.Configuration.GetValue<bool>("AUTO_INITIALIZE_DB") ||
     if (app.Configuration.GetValue<bool>("AUTO_INITIALIZE_DB") && !app.Configuration.GetValue<bool>("USE_INMEMORY_DB"))
     {
         await dbContext.Database.EnsureCreatedAsync();
+
+        // Incremental schema patch for production databases created before the latest course workflow.
+        await dbContext.Database.ExecuteSqlRawAsync(@"
+            ALTER TABLE courses ADD COLUMN IF NOT EXISTS created_by_student_id uuid;
+            ALTER TABLE courses ADD COLUMN IF NOT EXISTS course_cycle varchar(50);
+            ALTER TABLE courses ADD COLUMN IF NOT EXISTS exam_start_date timestamp with time zone;
+            ALTER TABLE courses ADD COLUMN IF NOT EXISTS exam_end_date timestamp with time zone;
+            ALTER TABLE exam_status ADD COLUMN IF NOT EXISTS certificate_ready_reminder_sent_date timestamp with time zone;
+
+            DROP INDEX IF EXISTS ix_courses_course_code;
+            DROP INDEX IF EXISTS ""IX_courses_course_code"";
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_courses_admin_course_code
+                ON courses (course_code)
+                WHERE created_by_student_id IS NULL;
+            CREATE UNIQUE INDEX IF NOT EXISTS ix_courses_student_course_code
+                ON courses (created_by_student_id, course_code)
+                WHERE created_by_student_id IS NOT NULL;
+        ");
     }
 
     await NPTELManagement.Infrastructure.Data.DatabaseSeeder.SeedAsync(dbContext, hasher);
