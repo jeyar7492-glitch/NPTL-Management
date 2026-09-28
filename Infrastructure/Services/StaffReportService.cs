@@ -103,7 +103,12 @@ public class StaffReportService : IStaffReportService
                         CertificateNumber = reg.Certificate?.CertificateNumber,
                         CertificateScore = reg.Certificate?.Score,
                         CertificatePassStatus = reg.Certificate?.PassStatus,
-                        CertificateSubmittedDate = reg.Certificate?.SubmittedDate?.ToString("yyyy-MM-dd")
+                        CertificateSubmittedDate = reg.Certificate?.SubmittedDate?.ToString("yyyy-MM-dd"),
+                        CourseCycle = reg.Course?.CourseCycle,
+                        CourseStartDate = reg.Course?.CourseStartDate?.ToString("yyyy-MM-dd"),
+                        CourseEndDate = reg.Course?.CourseEndDate?.ToString("yyyy-MM-dd"),
+                        ExamStartDate = reg.Course?.ExamStartDate?.ToString("yyyy-MM-dd"),
+                        ExamEndDate = reg.Course?.ExamEndDate?.ToString("yyyy-MM-dd")
                     });
                 }
             }
@@ -130,7 +135,7 @@ public class StaffReportService : IStaffReportService
         if (report == null) throw new KeyNotFoundException("Staff context not found.");
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("S.No,Student Name,Register Number,Department,Year,Class Section,Course Code,Course Name,Registration Status,Exam Status,Certificate Status,Certificate Number,Certificate Score,Certificate Pass Status,Certificate Submitted Date");
+        sb.AppendLine("S.No,Student Name,Register Number,Department,Year,Class Section,Course Code,Course Name,Course Cycle,Course Start,Course End,Exam Start,Exam End,Registration Status,Exam Status,Certificate Status,Certificate Number,Certificate Score,Certificate Pass Status,Certificate Submitted Date");
 
         for (var i = 0; i < report.Items.Count; i++)
         {
@@ -144,6 +149,11 @@ public class StaffReportService : IStaffReportService
                 EscapeCsv(item.ClassSection ?? ""),
                 EscapeCsv(item.CourseCode),
                 EscapeCsv(item.CourseName),
+                EscapeCsv(item.CourseCycle ?? ""),
+                EscapeCsv(item.CourseStartDate ?? ""),
+                EscapeCsv(item.CourseEndDate ?? ""),
+                EscapeCsv(item.ExamStartDate ?? ""),
+                EscapeCsv(item.ExamEndDate ?? ""),
                 EscapeCsv(item.RegistrationStatus),
                 EscapeCsv(item.ExamStatus),
                 EscapeCsv(item.CertificateStatus),
@@ -170,7 +180,8 @@ public class StaffReportService : IStaffReportService
         var headers = new[]
         {
             "S.No","Student Name","Register Number","Department","Year","Class Section",
-            "Course Code","Course Name","Registration Status","Exam Status","Certificate Status",
+            "Course Code","Course Name","Course Cycle","Course Start","Course End","Exam Start","Exam End",
+            "Registration Status","Exam Status","Certificate Status",
             "Certificate Number","Certificate Score","Certificate Pass Status","Certificate Submitted Date"
         };
 
@@ -198,7 +209,9 @@ public class StaffReportService : IStaffReportService
             var values = new object?[]
             {
                 i + 1, item.StudentName, item.RegisterNumber, item.Department, item.Year,
-                item.ClassSection ?? "", item.CourseCode, item.CourseName, item.RegistrationStatus,
+                item.ClassSection ?? "", item.CourseCode, item.CourseName, item.CourseCycle ?? "",
+                item.CourseStartDate ?? "", item.CourseEndDate ?? "", item.ExamStartDate ?? "", item.ExamEndDate ?? "",
+                item.RegistrationStatus,
                 item.ExamStatus, item.CertificateStatus, item.CertificateNumber ?? "",
                 item.CertificateScore.HasValue ? (double)item.CertificateScore.Value : null,
                 item.CertificatePassStatus ?? "", item.CertificateSubmittedDate ?? ""
@@ -209,6 +222,113 @@ public class StaffReportService : IStaffReportService
             }
         }
 
+        ws.Columns().AdjustToContents();
+
+        using var ms = new MemoryStream();
+        workbook.SaveAs(ms);
+        return ms.ToArray();
+    }
+
+    public async Task<byte[]> GenerateStudentXlsxAsync(
+        Guid staffUserId,
+        Guid studentId,
+        CancellationToken cancellationToken = default)
+    {
+        var staff = await _context.StaffMembers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.UserId == staffUserId || s.StaffId == staffUserId, cancellationToken);
+
+        if (staff == null)
+            throw new KeyNotFoundException("Staff context not found.");
+
+        var student = await _context.Students
+            .AsNoTracking()
+            .Include(s => s.Registrations)
+                .ThenInclude(r => r.Course)
+            .Include(s => s.Registrations)
+                .ThenInclude(r => r.ExamStatus)
+            .Include(s => s.Registrations)
+                .ThenInclude(r => r.Certificate)
+            .FirstOrDefaultAsync(s => s.StudentId == studentId, cancellationToken);
+
+        if (student == null)
+            throw new KeyNotFoundException("Student not found.");
+
+        if (!string.Equals(student.Department, staff.Department, StringComparison.OrdinalIgnoreCase) ||
+            student.Year != staff.AssignedYear ||
+            (!string.IsNullOrWhiteSpace(staff.AssignedClass) &&
+             !string.Equals(student.ClassSection, staff.AssignedClass, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new UnauthorizedAccessException("This student is outside your assigned scope.");
+        }
+
+        using var workbook = new ClosedXML.Excel.XLWorkbook();
+        var profile = workbook.Worksheets.Add("Student Details");
+        profile.Cell(1, 1).Value = "NPTEL MANAGEMENT SYSTEM - STUDENT DETAILS";
+        profile.Range(1, 1, 1, 4).Merge();
+        profile.Cell(1, 1).Style.Font.Bold = true;
+        profile.Cell(1, 1).Style.Font.FontSize = 14;
+
+        var studentRows = new[]
+        {
+            ("Name", student.Name),
+            ("Register Number", student.RegisterNumber),
+            ("Department", student.Department),
+            ("Year", student.Year.ToString()),
+            ("Class", student.ClassSection ?? ""),
+            ("Batch", student.Batch ?? ""),
+            ("Email", student.Email ?? ""),
+            ("Phone", student.Phone ?? "")
+        };
+        for (var i = 0; i < studentRows.Length; i++)
+        {
+            profile.Cell(i + 3, 1).Value = studentRows[i].Item1;
+            profile.Cell(i + 3, 1).Style.Font.Bold = true;
+            profile.Cell(i + 3, 2).Value = studentRows[i].Item2;
+        }
+
+        var ws = workbook.Worksheets.Add("NPTEL Courses");
+        var headers = new[]
+        {
+            "S.No","Course Code","Course Name","Duration Weeks","Cycle","Course Start","Course End",
+            "Exam Start","Exam End","Registration Status","Exam Status","Score","Pass Status",
+            "Certificate Status","Certificate Number","Certificate Submitted"
+        };
+        for (var i = 0; i < headers.Length; i++)
+        {
+            ws.Cell(1, i + 1).Value = headers[i];
+            ws.Cell(1, i + 1).Style.Font.Bold = true;
+        }
+
+        var row = 2;
+        foreach (var reg in student.Registrations.OrderByDescending(r => r.EnrollmentDate))
+        {
+            var values = new object?[]
+            {
+                row - 1,
+                reg.Course?.CourseCode ?? "",
+                reg.Course?.CourseName ?? "",
+                reg.Course?.DurationWeeks ?? 0,
+                reg.Course?.CourseCycle ?? "",
+                reg.Course?.CourseStartDate?.ToString("yyyy-MM-dd") ?? "",
+                reg.Course?.CourseEndDate?.ToString("yyyy-MM-dd") ?? "",
+                reg.Course?.ExamStartDate?.ToString("yyyy-MM-dd") ?? "",
+                reg.Course?.ExamEndDate?.ToString("yyyy-MM-dd") ?? "",
+                reg.Status.ToString(),
+                reg.ExamStatus?.Status ?? reg.ExamStatus?.ExamApplicationStatus ?? "NotStarted",
+                reg.ExamStatus?.Score?.ToString("0.##") ?? "",
+                reg.ExamStatus?.PassStatus ?? "",
+                reg.Certificate?.VerifiedStatus.ToString() ?? "Pending",
+                reg.Certificate?.CertificateNumber ?? "",
+                reg.Certificate?.SubmittedDate?.ToString("yyyy-MM-dd") ?? ""
+            };
+
+            for (var col = 0; col < values.Length; col++)
+                ws.Cell(row, col + 1).Value = values[col]?.ToString() ?? string.Empty;
+            row++;
+        }
+
+        profile.Columns().AdjustToContents();
         ws.Columns().AdjustToContents();
 
         using var ms = new MemoryStream();
