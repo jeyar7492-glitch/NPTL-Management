@@ -19,6 +19,15 @@ public class StudentCertificateUploadResponse
     public DateTime? IssuedDate { get; set; }
 }
 
+public class AddStudentCourseRequestDto
+{
+    public string CourseCode { get; set; } = string.Empty;
+    public string CourseName { get; set; } = string.Empty;
+    public int DurationWeeks { get; set; } = 12;
+    public DateTime? CourseStartDate { get; set; }
+    public DateTime? CourseEndDate { get; set; }
+}
+
 public class RegisterStudentCourseDto
 {
     public Guid CourseId { get; set; }
@@ -151,6 +160,51 @@ public class StudentController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+    }
+
+    [HttpPost("courses/add-and-register")]
+    public async Task<IActionResult> AddAndRegisterCourse(
+        [FromBody] AddStudentCourseRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var (userId, studentId) = await GetAuthenticatedStudentContextAsync(cancellationToken);
+        if (studentId == null || userId == null)
+        {
+            return Unauthorized(ApiResponse<object>.FailureResponse("Invalid student token context."));
+        }
+
+        try
+        {
+            var details = await _studentCourseService.AddAndRegisterCourseAsync(
+                studentId.Value,
+                userId.Value,
+                new AddStudentCourseDto
+                {
+                    CourseCode = request.CourseCode,
+                    CourseName = request.CourseName,
+                    DurationWeeks = request.DurationWeeks,
+                    CourseStartDate = request.CourseStartDate,
+                    CourseEndDate = request.CourseEndDate
+                },
+                GetClientIp(),
+                cancellationToken);
+
+            return StatusCode(201, ApiResponse<StudentCourseDetailsDto>.SuccessResponse(
+                details,
+                "Course added and registered successfully."));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse(ex.Message));
         }
         catch (InvalidOperationException ex)
         {
