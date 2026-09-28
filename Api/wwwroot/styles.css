@@ -165,3 +165,8 @@ button{cursor:pointer}
   .role-tabs{grid-template-columns:1fr 1fr 1fr}
   .role-tab{padding:9px 6px}
 }
+
+.course-add-form{align-items:end}
+.course-add-form .course-add-actions{grid-column:1 / -1;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.course-add-form .course-add-actions .primary-btn{min-width:190px}
+@media (max-width:720px){.course-add-form .course-add-actions{align-items:stretch;flex-direction:column}.course-add-form .course-add-actions .primary-btn{width:100%}}
