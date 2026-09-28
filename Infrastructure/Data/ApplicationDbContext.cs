@@ -153,10 +153,10 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CourseCode).HasColumnName("course_code").HasMaxLength(50).IsRequired();
             entity.HasIndex(e => new { e.CreatedByStudentId, e.CourseCode })
                 .IsUnique()
-                .HasFilter(""created_by_student_id" IS NOT NULL");
+                .HasFilter("\"created_by_student_id\" IS NOT NULL");
             entity.HasIndex(e => e.CourseCode)
                 .IsUnique()
-                .HasFilter(""created_by_student_id" IS NULL");
+                .HasFilter("\"created_by_student_id\" IS NULL");
             entity.Property(e => e.CourseName).HasColumnName("course_name").HasMaxLength(255).IsRequired();
             entity.Property(e => e.DurationWeeks).HasColumnName("duration_weeks").IsRequired();
             entity.Property(e => e.CourseStartDate).HasColumnName("course_start_date").HasColumnType("timestamp with time zone");
