@@ -63,6 +63,145 @@ public class StudentCourseService : IStudentCourseService
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<AvailableCourseDto>> GetAvailableCoursesAsync(Guid studentId, CancellationToken cancellationToken = default)
+    {
+        var registeredCourseIds = _context.NptelRegistrations
+            .Where(r => r.StudentId == studentId)
+            .Select(r => r.CourseId);
+
+        return await _context.Courses
+            .AsNoTracking()
+            .Where(c => !registeredCourseIds.Contains(c.CourseId))
+            .OrderBy(c => c.CourseName)
+            .Select(c => new AvailableCourseDto
+            {
+                CourseId = c.CourseId,
+                CourseCode = c.CourseCode,
+                CourseName = c.CourseName,
+                DurationWeeks = c.DurationWeeks,
+                CourseStartDate = c.CourseStartDate,
+                CourseEndDate = c.CourseEndDate
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<StudentCourseDetailsDto> RegisterForCourseAsync(
+        Guid studentId,
+        Guid courseId,
+        Guid userId,
+        string? ipAddress,
+        CancellationToken cancellationToken = default)
+    {
+        var course = await _context.Courses.FirstOrDefaultAsync(c => c.CourseId == courseId, cancellationToken);
+        if (course == null)
+            throw new KeyNotFoundException("Selected course was not found.");
+
+        var student = await _context.Students.FirstOrDefaultAsync(s => s.StudentId == studentId, cancellationToken);
+        if (student == null)
+            throw new KeyNotFoundException("Student profile not found.");
+
+        var exists = await _context.NptelRegistrations
+            .AnyAsync(r => r.StudentId == studentId && r.CourseId == courseId, cancellationToken);
+
+        if (exists)
+            throw new InvalidOperationException("You are already registered for this course.");
+
+        var registrationId = Guid.NewGuid();
+        var enrollmentDate = DateTime.UtcNow;
+
+        _context.NptelRegistrations.Add(new NptelRegistration
+        {
+            RegistrationId = registrationId,
+            StudentId = studentId,
+            CourseId = courseId,
+            EnrollmentDate = enrollmentDate,
+            Status = RegistrationStatus.Registered,
+            CreatedAt = enrollmentDate,
+            UpdatedAt = enrollmentDate
+        });
+
+        _context.ExamStatuses.Add(new ExamStatusEntity
+        {
+            ExamStatusId = Guid.NewGuid(),
+            RegistrationId = registrationId,
+            ExamApplicationStatus = "NotStarted",
+            Status = "NotStarted",
+            UpdatedAt = enrollmentDate
+        });
+
+        _context.Certificates.Add(new Certificate
+        {
+            CertificateId = Guid.NewGuid(),
+            RegistrationId = registrationId,
+            VerifiedStatus = CertificateStatus.Pending,
+            CreatedAt = enrollmentDate,
+            UpdatedAt = enrollmentDate
+        });
+
+        var timeline = new[]
+        {
+            new CourseTimeline
+            {
+                RegistrationId = registrationId,
+                Title = "Course Registration Confirmed",
+                Description = "Student registration completed and course access is active.",
+                Status = "Completed",
+                EventDate = enrollmentDate,
+                DisplayOrder = 1,
+                WeekNumber = 1
+            },
+            new CourseTimeline
+            {
+                RegistrationId = registrationId,
+                Title = "Weekly Lectures & Assignments",
+                Description = "Complete weekly lectures, quizzes and assignments.",
+                Status = "Current",
+                EventDate = course.CourseStartDate ?? enrollmentDate,
+                DisplayOrder = 2,
+                WeekNumber = 1
+            },
+            new CourseTimeline
+            {
+                RegistrationId = registrationId,
+                Title = "Exam Registration",
+                Description = "Apply for the NPTEL proctored examination when the registration window opens.",
+                Status = "Pending",
+                EventDate = course.CourseEndDate?.AddDays(7) ?? enrollmentDate.AddDays(course.DurationWeeks * 7 + 7),
+                DisplayOrder = 3,
+                WeekNumber = course.DurationWeeks + 1
+            },
+            new CourseTimeline
+            {
+                RegistrationId = registrationId,
+                Title = "Proctored Examination",
+                Description = "Attend the scheduled NPTEL examination.",
+                Status = "Pending",
+                EventDate = course.CourseEndDate?.AddDays(21) ?? enrollmentDate.AddDays(course.DurationWeeks * 7 + 21),
+                DisplayOrder = 4,
+                WeekNumber = course.DurationWeeks + 3
+            },
+            new CourseTimeline
+            {
+                RegistrationId = registrationId,
+                Title = "Result & Certificate",
+                Description = "Result and certificate will appear here after NPTEL publishes them.",
+                Status = "Pending",
+                EventDate = course.CourseEndDate?.AddDays(45) ?? enrollmentDate.AddDays(course.DurationWeeks * 7 + 45),
+                DisplayOrder = 5,
+                WeekNumber = course.DurationWeeks + 6
+            }
+        };
+
+        _context.CourseTimelines.AddRange(timeline);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var details = await GetCourseDetailsAsync(studentId, registrationId, cancellationToken);
+        if (details == null)
+            throw new InvalidOperationException("Course registration was created but details could not be loaded.");
+
+        return details;
+    }
+
     public async Task<StudentCourseDetailsDto?> GetCourseDetailsAsync(Guid studentId, Guid registrationId, CancellationToken cancellationToken = default)
     {
         // Enforce student ownership: registration must belong to studentId
