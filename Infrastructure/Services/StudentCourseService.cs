@@ -59,6 +59,10 @@ public class StudentCourseService : IStudentCourseService
                 DurationWeeks = r.Course != null ? r.Course.DurationWeeks : 0,
                 CourseStartDate = r.Course != null ? r.Course.CourseStartDate : null,
                 CourseEndDate = r.Course != null ? r.Course.CourseEndDate : null,
+                CourseCycle = r.Course != null ? r.Course.CourseCycle : null,
+                ExamStartDate = r.Course != null ? r.Course.ExamStartDate : null,
+                ExamEndDate = r.Course != null ? r.Course.ExamEndDate : null,
+                CanEditDetails = r.Course != null && r.Course.CreatedByStudentId == studentId,
                 EnrollmentDate = r.EnrollmentDate,
                 RegistrationStatus = r.Status.ToString()
             })
@@ -73,7 +77,9 @@ public class StudentCourseService : IStudentCourseService
 
         return await _context.Courses
             .AsNoTracking()
-            .Where(c => !registeredCourseIds.Contains(c.CourseId))
+            .Where(c => (c.CreatedByStudentId == null || c.CreatedByStudentId == studentId) &&
+                        c.Status == "Active" &&
+                        !registeredCourseIds.Contains(c.CourseId))
             .OrderBy(c => c.CourseName)
             .Select(c => new AvailableCourseDto
             {
@@ -82,7 +88,10 @@ public class StudentCourseService : IStudentCourseService
                 CourseName = c.CourseName,
                 DurationWeeks = c.DurationWeeks,
                 CourseStartDate = c.CourseStartDate,
-                CourseEndDate = c.CourseEndDate
+                CourseEndDate = c.CourseEndDate,
+                CourseCycle = c.CourseCycle,
+                ExamStartDate = c.ExamStartDate,
+                ExamEndDate = c.ExamEndDate
             })
             .ToListAsync(cancellationToken);
     }
@@ -127,6 +136,10 @@ public class StudentCourseService : IStudentCourseService
             CourseStartDate = dto.CourseStartDate,
             CourseEndDate = dto.CourseEndDate,
             Status = "Active",
+            CreatedByStudentId = studentId,
+            CourseCycle = dto.CourseCycle?.Trim(),
+            ExamStartDate = dto.ExamStartDate,
+            ExamEndDate = dto.ExamEndDate,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -135,6 +148,66 @@ public class StudentCourseService : IStudentCourseService
         await _context.SaveChangesAsync(cancellationToken);
 
         return await RegisterForCourseAsync(studentId, course.CourseId, userId, ipAddress, cancellationToken);
+    }
+
+    public async Task<StudentCourseDetailsDto> UpdateStudentCourseDetailsAsync(
+        Guid studentId,
+        Guid registrationId,
+        UpdateStudentCourseDto dto,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.CourseCode))
+            throw new ArgumentException("Course code is required.");
+        if (string.IsNullOrWhiteSpace(dto.CourseName))
+            throw new ArgumentException("Course name is required.");
+        if (dto.DurationWeeks <= 0 || dto.DurationWeeks > 52)
+            throw new ArgumentException("Duration must be between 1 and 52 weeks.");
+        if (dto.CourseEndDate.HasValue && dto.CourseStartDate.HasValue && dto.CourseEndDate < dto.CourseStartDate)
+            throw new ArgumentException("Course end date cannot be earlier than the course start date.");
+        if (dto.ExamEndDate.HasValue && dto.ExamStartDate.HasValue && dto.ExamEndDate < dto.ExamStartDate)
+            throw new ArgumentException("Exam end date cannot be earlier than exam start date.");
+
+        var registration = await _context.NptelRegistrations
+            .Include(r => r.Course)
+            .Include(r => r.ExamStatus)
+            .FirstOrDefaultAsync(r => r.RegistrationId == registrationId && r.StudentId == studentId, cancellationToken);
+
+        if (registration?.Course == null)
+            throw new KeyNotFoundException("Course registration not found.");
+
+        if (registration.Course.CreatedByStudentId != studentId)
+            throw new UnauthorizedAccessException("Only the student who added this course can update its details.");
+
+        var cleanCode = dto.CourseCode.Trim().ToUpperInvariant();
+        var duplicate = await _context.Courses.AnyAsync(
+            c => c.CourseId != registration.CourseId &&
+                 c.CourseCode.ToUpper() == cleanCode,
+            cancellationToken);
+
+        if (duplicate)
+            throw new InvalidOperationException($"Course code '{cleanCode}' is already in use.");
+
+        registration.Course.CourseCode = cleanCode;
+        registration.Course.CourseName = dto.CourseName.Trim();
+        registration.Course.DurationWeeks = dto.DurationWeeks;
+        registration.Course.CourseCycle = dto.CourseCycle?.Trim();
+        registration.Course.CourseStartDate = dto.CourseStartDate;
+        registration.Course.CourseEndDate = dto.CourseEndDate;
+        registration.Course.ExamStartDate = dto.ExamStartDate;
+        registration.Course.ExamEndDate = dto.ExamEndDate;
+        registration.Course.UpdatedAt = DateTime.UtcNow;
+
+        if (registration.ExamStatus != null)
+        {
+            registration.ExamStatus.ExamDate = dto.ExamStartDate;
+            registration.ExamStatus.Status = dto.ExamStartDate.HasValue ? "Scheduled" : "NotStarted";
+            registration.ExamStatus.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return await GetCourseDetailsAsync(studentId, registrationId, cancellationToken)
+            ?? throw new KeyNotFoundException("Updated course could not be loaded.");
     }
 
     public async Task<StudentCourseDetailsDto> RegisterForCourseAsync(
