@@ -118,6 +118,9 @@ public class StudentCourseService : IStudentCourseService
 
         if (existing != null)
         {
+            if (existing.CreatedByStudentId.HasValue && existing.CreatedByStudentId != studentId)
+                throw new InvalidOperationException("That course code belongs to another student's private course. Please use the course details you entered.");
+
             var alreadyRegistered = await _context.NptelRegistrations
                 .AnyAsync(r => r.StudentId == studentId && r.CourseId == existing.CourseId, cancellationToken);
 
@@ -352,6 +355,10 @@ public class StudentCourseService : IStudentCourseService
             DurationWeeks = reg.Course?.DurationWeeks ?? 0,
             CourseStartDate = reg.Course?.CourseStartDate,
             CourseEndDate = reg.Course?.CourseEndDate,
+            CourseCycle = reg.Course?.CourseCycle,
+            ExamStartDate = reg.Course?.ExamStartDate,
+            ExamEndDate = reg.Course?.ExamEndDate,
+            CanEditDetails = reg.Course?.CreatedByStudentId == studentId,
             EnrollmentDate = reg.EnrollmentDate,
             RegistrationStatus = reg.Status.ToString(),
             Timeline = reg.Timeline
