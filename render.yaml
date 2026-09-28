@@ -1,7 +1,6 @@
 # NPTEL Management System - Render Blueprint
-# The existing Render Postgres resource is declared here so the Blueprint can
-# manage the existing database and inject its connection string into the web service.
-
+# Existing Render resources are referenced by name so a Blueprint sync can wire
+# the web service to the persistent Render Postgres database.
 services:
   - type: web
     name: NPTL-Management
@@ -23,10 +22,14 @@ services:
         value: "true"
       - key: AUTO_INITIALIZE_DB
         value: "true"
+      - key: SEED_MODE
+        value: clean
       - key: JWT_ISSUER
         value: NPTELManagementApi
       - key: JWT_AUDIENCE
         value: NPTELManagementClient
+      - key: JWT_SECRET
+        generateValue: true
       - key: SUPABASE_DB_CONNECTION
         fromDatabase:
           name: NPTL-Management-DB
@@ -36,5 +39,7 @@ databases:
   - name: NPTL-Management-DB
     plan: free
     region: oregon
-    version: 17
+    postgresMajorVersion: "17"
+    databaseName: nptl_management_db
+    user: nptl_management_db_user
     diskSizeGB: 1
