@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using NPTELManagement.Core.DTOs;
+using NPTELManagement.Core.Entities;
 using NPTELManagement.Core.Enums;
 using NPTELManagement.Core.Interfaces;
+using ExamStatusEntity = NPTELManagement.Core.Entities.ExamStatus;
 using NPTELManagement.Infrastructure.Data;
 
 namespace NPTELManagement.Infrastructure.Services;
