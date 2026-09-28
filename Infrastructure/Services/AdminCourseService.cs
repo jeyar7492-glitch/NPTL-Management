@@ -86,6 +86,9 @@ public class AdminCourseService : IAdminCourseService
             DurationWeeks = c.DurationWeeks,
             CourseStartDate = c.CourseStartDate,
             CourseEndDate = c.CourseEndDate,
+            CourseCycle = c.CourseCycle,
+            ExamStartDate = c.ExamStartDate,
+            ExamEndDate = c.ExamEndDate,
             Status = c.Status,
             TotalRegistrations = c.Registrations.Count,
             CreatedAt = c.CreatedAt
