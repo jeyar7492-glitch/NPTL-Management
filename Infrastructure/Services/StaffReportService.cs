@@ -104,6 +104,7 @@ public class StaffReportService : IStaffReportService
                         CertificateScore = reg.Certificate?.Score,
                         CertificatePassStatus = reg.Certificate?.PassStatus,
                         CertificateSubmittedDate = reg.Certificate?.SubmittedDate?.ToString("yyyy-MM-dd"),
+                        DurationWeeks = reg.Course?.DurationWeeks ?? 0,
                         CourseCycle = reg.Course?.CourseCycle,
                         CourseStartDate = reg.Course?.CourseStartDate?.ToString("yyyy-MM-dd"),
                         CourseEndDate = reg.Course?.CourseEndDate?.ToString("yyyy-MM-dd"),
