@@ -74,6 +74,9 @@ public class StaffStudentCourseDto
     public DateTime RegistrationDate { get; set; }
     public DateTime? CourseStartDate { get; set; }
     public DateTime? CourseEndDate { get; set; }
+    public string? CourseCycle { get; set; }
+    public DateTime? ExamStartDate { get; set; }
+    public DateTime? ExamEndDate { get; set; }
     public string RegistrationStatus { get; set; } = string.Empty;
     public string? CurrentTimelineStatus { get; set; }
 
@@ -90,6 +93,12 @@ public class StaffReportItemDto
     public string? ClassSection { get; set; }
     public string CourseName { get; set; } = string.Empty;
     public string CourseCode { get; set; } = string.Empty;
+    public int DurationWeeks { get; set; }
+    public string? CourseCycle { get; set; }
+    public string? CourseStartDate { get; set; }
+    public string? CourseEndDate { get; set; }
+    public string? ExamStartDate { get; set; }
+    public string? ExamEndDate { get; set; }
     public string RegistrationStatus { get; set; } = string.Empty;
     public string ExamStatus { get; set; } = string.Empty;
     public string CertificateStatus { get; set; } = string.Empty;
