@@ -19,6 +19,11 @@ public class StudentCertificateUploadResponse
     public DateTime? IssuedDate { get; set; }
 }
 
+public class RegisterStudentCourseDto
+{
+    public Guid CourseId { get; set; }
+}
+
 [ApiController]
 [Route("api/v1/[controller]")]
 [Authorize(Roles = "Student")]
@@ -99,6 +104,58 @@ public class StudentController : ControllerBase
 
         var courses = await _studentCourseService.GetStudentCoursesAsync(studentId.Value, cancellationToken);
         return Ok(ApiResponse<List<StudentCourseDto>>.SuccessResponse(courses, "Student courses retrieved successfully."));
+    }
+
+    [HttpGet("available-courses")]
+    public async Task<IActionResult> GetAvailableCourses(CancellationToken cancellationToken)
+    {
+        var (_, studentId) = await GetAuthenticatedStudentContextAsync(cancellationToken);
+        if (studentId == null)
+        {
+            return Unauthorized(ApiResponse<object>.FailureResponse("Invalid student token context."));
+        }
+
+        var courses = await _studentCourseService.GetAvailableCoursesAsync(studentId.Value, cancellationToken);
+        return Ok(ApiResponse<List<AvailableCourseDto>>.SuccessResponse(courses, "Available NPTEL courses retrieved successfully."));
+    }
+
+    [HttpPost("courses/register")]
+    public async Task<IActionResult> RegisterForCourse(
+        [FromBody] RegisterStudentCourseDto request,
+        CancellationToken cancellationToken)
+    {
+        var (userId, studentId) = await GetAuthenticatedStudentContextAsync(cancellationToken);
+        if (studentId == null || userId == null)
+        {
+            return Unauthorized(ApiResponse<object>.FailureResponse("Invalid student token context."));
+        }
+
+        if (request.CourseId == Guid.Empty)
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse("Course selection is required."));
+        }
+
+        try
+        {
+            var details = await _studentCourseService.RegisterForCourseAsync(
+                studentId.Value,
+                request.CourseId,
+                userId.Value,
+                GetClientIp(),
+                cancellationToken);
+
+            return Ok(ApiResponse<StudentCourseDetailsDto>.SuccessResponse(
+                details,
+                "Course registered successfully. Your timeline, exam and certificate tracking are now ready."));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<object>.FailureResponse(ex.Message));
+        }
     }
 
     [HttpGet("courses/{registrationId:guid}")]
