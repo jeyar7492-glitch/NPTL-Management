@@ -357,19 +357,35 @@
     renderStats(summary?.data || {});
     renderProfile(profile?.data || {});
     renderDashboardList(primary?.data || []);
+    if (state.role === "Student") {
+      try {
+        const available = await cached("/api/v1/student/available-courses", force);
+        const availableItems = Array.isArray(available?.data) ? available.data : [];
+        if (availableItems.length) {
+          $("primaryContent").innerHTML += availableCourseSection(availableItems);
+          bindCourseButtons(Array.isArray(primary?.data) ? primary.data : []);
+          bindCourseEnrollmentButtons();
+        }
+      } catch (_) {
+        // Keep the registered-course dashboard usable when availability cannot be loaded.
+      }
+    }
     $("refreshBtn").hidden = false;
   }
 
   async function loadStudentCourses(force) {
     const result = await cached("/api/v1/student/courses", force);
+    const available = await cached("/api/v1/student/available-courses", force);
     setPageTitle("My Courses", "Student portal");
     $("statsGrid").innerHTML = "";
-    $("welcomeBanner").innerHTML = banner("Your NPTEL learning journey", "Open any course to view timeline, exam and certificate details.");
+    $("welcomeBanner").innerHTML = banner("Your NPTEL learning journey", "Open any course to view timeline, exam and certificate details. New students can choose an NPTEL course below.");
     const courses = Array.isArray(result?.data) ? result.data : [];
+    const availableCourses = Array.isArray(available?.data) ? available.data : [];
     $("primaryHeading").textContent = "Registered Courses";
-    $("primaryContent").innerHTML = courseCards(courses);
+    $("primaryContent").innerHTML = courseCards(courses) + availableCourseSection(availableCourses);
     bindCourseButtons(courses);
-    $("profileContent").innerHTML = '<div class="empty">Select a course to view full details.</div>';
+    bindCourseEnrollmentButtons();
+    $("profileContent").innerHTML = '<div class="empty">Select a course to view timeline, exam and certificate details.</div>';
   }
 
   async function openStudentCourse(registrationId) {
@@ -631,6 +647,48 @@
 
     if (state.role === "Student") bindCourseButtons(items);
     else bindDetailButtons();
+  }
+
+  function availableCourseSection(items) {
+    if (!items.length) return "";
+    return '<div class="certificate-box course-picker-box">' +
+      '<div class="box-title">Available NPTEL Courses</div>' +
+      '<div class="data-meta">Choose a course to create your registration and activate its timeline, exam and certificate tracking.</div>' +
+      '<div class="data-list" style="margin-top:12px">' +
+      items.map(item =>
+        '<div class="data-item">' +
+        '<div><div class="data-title">' + escapeHtml(item.courseName || "Course") + '</div>' +
+        '<div class="data-meta">' + escapeHtml([item.courseCode, item.durationWeeks ? item.durationWeeks + " weeks" : "", item.courseStartDate ? "Starts " + formatDate(item.courseStartDate) : ""].filter(Boolean).join(" · ")) + '</div></div>' +
+        '<div class="row-actions"><button class="primary-btn small" data-enroll-course="' + escapeHtml(item.courseId) + '">Register Course</button></div>' +
+        '</div>'
+      ).join("") +
+      '</div></div>';
+  }
+
+  function bindCourseEnrollmentButtons() {
+    document.querySelectorAll("[data-enroll-course]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const courseId = btn.dataset.enrollCourse;
+        if (!courseId) return;
+        btn.disabled = true;
+        const original = btn.textContent;
+        btn.textContent = "Registering…";
+        try {
+          await request("/api/v1/student/courses/register", {
+            method: "POST",
+            body: { courseId }
+          });
+          state.cache.delete("/api/v1/student/courses");
+          state.cache.delete("/api/v1/student/available-courses");
+          state.cache.delete("/api/v1/student/dashboard-summary");
+          await loadStudentCourses(true);
+        } catch (err) {
+          alert(err.message || "Course registration failed.");
+          btn.disabled = false;
+          btn.textContent = original;
+        }
+      });
+    });
   }
 
   function courseCards(items) {
