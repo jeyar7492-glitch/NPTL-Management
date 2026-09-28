@@ -357,34 +357,19 @@
     renderStats(summary?.data || {});
     renderProfile(profile?.data || {});
     renderDashboardList(primary?.data || []);
-    if (state.role === "Student") {
-      try {
-        const available = await cached("/api/v1/student/available-courses", force);
-        const availableItems = Array.isArray(available?.data) ? available.data : [];
-        if (availableItems.length) {
-          $("primaryContent").innerHTML += availableCourseSection(availableItems);
-          bindCourseButtons(Array.isArray(primary?.data) ? primary.data : []);
-          bindCourseEnrollmentButtons();
-        }
-      } catch (_) {
-        // Keep the registered-course dashboard usable when availability cannot be loaded.
-      }
-    }
     $("refreshBtn").hidden = false;
   }
 
   async function loadStudentCourses(force) {
     const result = await cached("/api/v1/student/courses", force);
-    const available = await cached("/api/v1/student/available-courses", force);
-    setPageTitle("My Courses", "Student portal");
+    setPageTitle("My NPTEL Courses", "Student portal");
     $("statsGrid").innerHTML = "";
-    $("welcomeBanner").innerHTML = banner("Your NPTEL learning journey", "Open any course to view timeline, exam and certificate details. New students can choose an NPTEL course below.");
+    $("welcomeBanner").innerHTML = banner("My NPTEL Course Details", "Enter your own NPTEL course, cycle, duration and exam schedule. Only you can edit courses you added.");
     const courses = Array.isArray(result?.data) ? result.data : [];
-    const availableCourses = Array.isArray(available?.data) ? available.data : [];
     $("primaryHeading").textContent = "My NPTEL Courses";
-    $("primaryContent").innerHTML = addCourseSection() + courseCards(courses) + availableCourseSection(availableCourses);
+    $("primaryContent").innerHTML = addCourseSection() + courseCards(courses);
     bindCourseButtons(courses);
-    bindCourseEnrollmentButtons();
+    bindStudentCourseEditButtons();
     bindAddCourseForm();
     $("profileContent").innerHTML = '<div class="empty">Select a course to view timeline, exam and certificate details.</div>';
   }
@@ -398,11 +383,17 @@
       $("statsGrid").innerHTML = "";
       $("welcomeBanner").innerHTML = banner(
         d?.courseName || "Course",
-        (d?.courseCode || "") + " · " + (d?.registrationStatus || "")
+        [d?.courseCode, d?.courseCycle, d?.registrationStatus, d?.examStartDate ? "Exam " + formatDate(d.examStartDate) : null, d?.examEndDate ? "Ends " + formatDate(d.examEndDate) : null].filter(Boolean).join(" · ")
       );
       $("primaryHeading").textContent = "Course Timeline";
       $("primaryContent").innerHTML = courseDetailView(d);
-      $("profileContent").innerHTML = examAndCertificateView(d, true);
+      $("profileContent").innerHTML = profileRows({
+        courseCycle: d?.courseCycle || "—",
+        courseStartDate: d?.courseStartDate || null,
+        courseEndDate: d?.courseEndDate || null,
+        examStartDate: d?.examStartDate || null,
+        examEndDate: d?.examEndDate || null
+      }, ["courseCycle","courseStartDate","courseEndDate","examStartDate","examEndDate"]) + examAndCertificateView(d, true);
       bindCertificateAccessButtons();
       bindStudentUploadButton(registrationId);
     } catch (err) {
@@ -455,8 +446,9 @@
       $("statsGrid").innerHTML = "";
       $("welcomeBanner").innerHTML = banner(d?.name || "Student", [d?.registerNumber, d?.department, d?.year ? "Year " + d.year : null, d?.classSection ? "Class " + d.classSection : null].filter(Boolean).join(" · "));
       $("primaryHeading").textContent = "NPTEL Courses";
-      $("primaryContent").innerHTML = tableCards(d?.courses || [], "staff-course");
+      $("primaryContent").innerHTML = '<div class="report-toolbar"><button class="primary-btn small" id="downloadIndividualStudentXlsx">Download This Student Excel</button></div>' + tableCards(d?.courses || [], "staff-course");
       $("profileContent").innerHTML = profileRows(d, ["studentId","name","registerNumber","department","classSection","year","batch","email","phone"]);
+      bindIndividualStudentExportButton(studentId);
       bindCertificateAccessButtons();
     } catch (err) {
       showPageMessage(err.message);
@@ -650,35 +642,51 @@
     else bindDetailButtons();
   }
 
-  function addCourseSection() {
+  function courseFormSection(course = null) {
+    const editing = !!course?.registrationId;
     return '<div class="certificate-box course-picker-box">' +
-      '<div class="box-title">Add New NPTEL Course</div>' +
-      '<div class="data-meta">Enter the NPTEL course details. The course will be added to the catalog and registered to your account immediately.</div>' +
-      '<form id="addStudentCourseForm" class="form-grid course-add-form">' +
-        '<div><label>Course Code</label><input class="form-input" id="newCourseCode" placeholder="e.g. NPTEL24CS01" required></div>' +
-        '<div><label>Course Name</label><input class="form-input" id="newCourseName" placeholder="e.g. Programming in Java" required></div>' +
-        '<div><label>Duration (weeks)</label><input class="form-input" id="newCourseDuration" type="number" min="1" max="52" value="12" required></div>' +
-        '<div><label>Start Date</label><input class="form-input" id="newCourseStart" type="date"></div>' +
-        '<div><label>End Date</label><input class="form-input" id="newCourseEnd" type="date"></div>' +
-        '<div class="course-add-actions"><button class="primary-btn" type="submit">Add & Register Course</button><div id="addCourseMessage" class="form-message"></div></div>' +
+      '<div class="box-title">' + (editing ? "Update My NPTEL Course" : "Add My NPTEL Course") + '</div>' +
+      '<div class="data-meta">' + (editing
+        ? "Update the course details and exam schedule you entered. Staff can view these details, but cannot edit them."
+        : "Enter the NPTEL course details. This course record belongs to your student account.") + '</div>' +
+      '<form id="studentCourseForm" class="form-grid course-add-form" data-registration="' + (editing ? escapeHtml(course.registrationId) : "") + '">' +
+        '<div><label>Course Code</label><input class="form-input" id="newCourseCode" value="' + escapeHtml(course?.courseCode || "") + '" placeholder="e.g. NPTEL24CS01" required></div>' +
+        '<div><label>Course Name</label><input class="form-input" id="newCourseName" value="' + escapeHtml(course?.courseName || "") + '" placeholder="e.g. Programming in Java" required></div>' +
+        '<div><label>Duration (weeks)</label><input class="form-input" id="newCourseDuration" type="number" min="1" max="52" value="' + escapeHtml(course?.durationWeeks || 12) + '" required></div>' +
+        '<div><label>NPTEL Cycle</label><input class="form-input" id="newCourseCycle" value="' + escapeHtml(course?.courseCycle || "") + '" placeholder="e.g. Jan-Apr 2026 / Jul-Oct 2026"></div>' +
+        '<div><label>Course Start Date</label><input class="form-input" id="newCourseStart" type="date" value="' + (course?.courseStartDate ? String(course.courseStartDate).slice(0,10) : "") + '"></div>' +
+        '<div><label>Course End Date</label><input class="form-input" id="newCourseEnd" type="date" value="' + (course?.courseEndDate ? String(course.courseEndDate).slice(0,10) : "") + '"></div>' +
+        '<div><label>Exam Start Date</label><input class="form-input" id="newExamStart" type="date" value="' + (course?.examStartDate ? String(course.examStartDate).slice(0,10) : "") + '"></div>' +
+        '<div><label>Exam End Date</label><input class="form-input" id="newExamEnd" type="date" value="' + (course?.examEndDate ? String(course.examEndDate).slice(0,10) : "") + '"></div>' +
+        '<div class="course-add-actions"><button class="primary-btn" type="submit">' + (editing ? "Update Course Details" : "Add & Register My Course") + '</button>' +
+        (editing ? '<button class="ghost-btn" type="button" id="cancelCourseEdit">Cancel</button>' : '') +
+        '<div id="addCourseMessage" class="form-message"></div></div>' +
       '</form>' +
       '</div>';
   }
 
+  function addCourseSection() {
+    return courseFormSection();
+  }
+
   function bindAddCourseForm() {
-    const form = $("addStudentCourseForm");
+    const form = $("studentCourseForm");
     if (!form || form.dataset.bound === "1") return;
     form.dataset.bound = "1";
     form.addEventListener("submit", async event => {
       event.preventDefault();
       const message = $("addCourseMessage");
       const button = form.querySelector("button[type=submit]");
+      const registrationId = form.dataset.registration || "";
       const payload = {
         courseCode: $("newCourseCode")?.value?.trim(),
         courseName: $("newCourseName")?.value?.trim(),
         durationWeeks: Number($("newCourseDuration")?.value || 12),
+        courseCycle: $("newCourseCycle")?.value?.trim() || null,
         courseStartDate: $("newCourseStart")?.value || null,
-        courseEndDate: $("newCourseEnd")?.value || null
+        courseEndDate: $("newCourseEnd")?.value || null,
+        examStartDate: $("newExamStart")?.value || null,
+        examEndDate: $("newExamEnd")?.value || null
       };
 
       if (!payload.courseCode || !payload.courseName) {
@@ -690,79 +698,80 @@
         return;
       }
       if (payload.courseStartDate && payload.courseEndDate && payload.courseEndDate < payload.courseStartDate) {
-        message.textContent = "End date cannot be earlier than start date.";
+        message.textContent = "Course end date cannot be earlier than course start date.";
+        return;
+      }
+      if (payload.examStartDate && payload.examEndDate && payload.examEndDate < payload.examStartDate) {
+        message.textContent = "Exam end date cannot be earlier than exam start date.";
         return;
       }
 
       button.disabled = true;
       message.className = "form-message";
-      message.textContent = "Adding course…";
+      message.textContent = registrationId ? "Updating course details…" : "Adding course…";
       try {
-        await request("/api/v1/student/courses/add-and-register", {
-          method: "POST",
+        const endpoint = registrationId
+          ? "/api/v1/student/courses/" + registrationId + "/details"
+          : "/api/v1/student/courses/add-and-register";
+
+        await request(endpoint, {
+          method: registrationId ? "PUT" : "POST",
           body: payload
         });
+
         state.cache.delete("/api/v1/student/courses");
-        state.cache.delete("/api/v1/student/available-courses");
         state.cache.delete("/api/v1/student/dashboard-summary");
         await loadStudentCourses(true);
       } catch (err) {
-        message.textContent = err.message || "Unable to add course.";
+        message.textContent = err.message || "Unable to save course details.";
         button.disabled = false;
-        button.textContent = "Add & Register Course";
       }
     });
+
+    $("cancelCourseEdit")?.addEventListener("click", () => loadStudentCourses(false));
   }
 
-  function availableCourseSection(items) {
-    if (!items.length) return "";
-    return '<div class="certificate-box course-picker-box">' +
-      '<div class="box-title">Available NPTEL Courses</div>' +
-      '<div class="data-meta">Choose a course to create your registration and activate its timeline, exam and certificate tracking.</div>' +
-      '<div class="data-list" style="margin-top:12px">' +
-      items.map(item =>
-        '<div class="data-item">' +
-        '<div><div class="data-title">' + escapeHtml(item.courseName || "Course") + '</div>' +
-        '<div class="data-meta">' + escapeHtml([item.courseCode, item.durationWeeks ? item.durationWeeks + " weeks" : "", item.courseStartDate ? "Starts " + formatDate(item.courseStartDate) : ""].filter(Boolean).join(" · ")) + '</div></div>' +
-        '<div class="row-actions"><button class="primary-btn small" data-enroll-course="' + escapeHtml(item.courseId) + '">Register Course</button></div>' +
-        '</div>'
-      ).join("") +
-      '</div></div>';
-  }
-
-  function bindCourseEnrollmentButtons() {
-    document.querySelectorAll("[data-enroll-course]").forEach(btn => {
+  function bindStudentCourseEditButtons() {
+    document.querySelectorAll("[data-edit-student-course]").forEach(btn => {
       btn.addEventListener("click", async () => {
-        const courseId = btn.dataset.enrollCourse;
-        if (!courseId) return;
-        btn.disabled = true;
-        const original = btn.textContent;
-        btn.textContent = "Registering…";
+        const registrationId = btn.dataset.editStudentCourse;
+        if (!registrationId) return;
         try {
-          await request("/api/v1/student/courses/register", {
-            method: "POST",
-            body: { courseId }
-          });
-          state.cache.delete("/api/v1/student/courses");
-          state.cache.delete("/api/v1/student/available-courses");
-          state.cache.delete("/api/v1/student/dashboard-summary");
-          await loadStudentCourses(true);
+          const result = await request("/api/v1/student/courses/" + registrationId);
+          const course = result?.data;
+          if (!course?.registrationId || !course?.canEditDetails) {
+            alert("You can only edit NPTEL courses that you added yourself.");
+            return;
+          }
+          $("primaryContent").innerHTML = courseFormSection(course) + courseCards([course]);
+          bindAddCourseForm();
+          bindCourseButtons([course]);
+          bindStudentCourseEditButtons();
+          $("primaryHeading").textContent = "Update NPTEL Course";
+          window.scrollTo({ top: 0, behavior: "smooth" });
         } catch (err) {
-          alert(err.message || "Course registration failed.");
-          btn.disabled = false;
-          btn.textContent = original;
+          alert(err.message || "Unable to load course details.");
         }
       });
     });
   }
 
   function courseCards(items) {
-    if (!items.length) return '<div class="empty">No courses found.</div>';
+    if (!items.length) return '<div class="empty">No NPTEL course details entered yet. Add your first course above.</div>';
     return '<div class="data-list">' + items.map(item =>
       '<div class="data-item">' +
       '<div><div class="data-title">' + escapeHtml(item.courseName || "Course") + '</div>' +
-      '<div class="data-meta">' + escapeHtml([item.courseCode, item.registrationStatus, item.durationWeeks ? item.durationWeeks + " weeks" : ""].filter(Boolean).join(" · ")) + '</div></div>' +
-      '<div class="row-actions"><button class="ghost-btn small" data-course="' + escapeHtml(item.registrationId) + '">Open</button></div>' +
+      '<div class="data-meta">' + escapeHtml([
+        item.courseCode,
+        item.courseCycle,
+        item.registrationStatus,
+        item.durationWeeks ? item.durationWeeks + " weeks" : "",
+        item.examStartDate ? "Exam " + formatDate(item.examStartDate) : ""
+      ].filter(Boolean).join(" · ")) + '</div></div>' +
+      '<div class="row-actions">' +
+      '<button class="ghost-btn small" data-course="' + escapeHtml(item.registrationId) + '">Open</button>' +
+      (item.canEditDetails ? '<button class="primary-btn small" data-edit-student-course="' + escapeHtml(item.registrationId) + '">Update</button>' : '') +
+      '</div>' +
       '</div>'
     ).join("") + '</div>';
   }
@@ -1243,6 +1252,36 @@
     const csv = $("downloadStaffCsv");
     if (xlsx) xlsx.addEventListener("click", () => download("xlsx"));
     if (csv) csv.addEventListener("click", () => download("csv"));
+  }
+
+  function bindIndividualStudentExportButton(studentId) {
+    const btn = $("downloadIndividualStudentXlsx");
+    if (!btn || !studentId) return;
+    btn.addEventListener("click", async () => {
+      try {
+        const response = await fetch(baseUrl + "/api/v1/staff/reports/export-xlsx/student/" + studentId, {
+          headers: state.token ? { Authorization: "Bearer " + state.token } : {}
+        });
+        if (!response.ok) {
+          const body = await response.text();
+          throw new Error(body || "Download failed.");
+        }
+        const blob = await response.blob();
+        const disposition = response.headers.get("Content-Disposition") || "";
+        const match = disposition.match(/filename="?([^"]+)"?/i);
+        const filename = match ? match[1] : "NPTEL_Student_Details.xlsx";
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert(err.message || "Download failed.");
+      }
+    });
   }
 
   function bindCertificateAccessButtons() {
