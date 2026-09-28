@@ -13,6 +13,7 @@ public class ExamStatus
     public decimal? Score { get; set; }
     public string? PassStatus { get; set; }
     public DateTime? LastResultReminderDate { get; set; }
+    public DateTime? CertificateReadyReminderSentDate { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties
