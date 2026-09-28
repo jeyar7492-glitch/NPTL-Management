@@ -42,4 +42,3 @@ databases:
     postgresMajorVersion: "17"
     databaseName: nptl_management_db
     user: nptl_management_db_user
-    diskSizeGB: 1
