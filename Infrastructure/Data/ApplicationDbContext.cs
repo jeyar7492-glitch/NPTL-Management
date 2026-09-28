@@ -157,6 +157,10 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CourseStartDate).HasColumnName("course_start_date").HasColumnType("timestamp with time zone");
             entity.Property(e => e.CourseEndDate).HasColumnName("course_end_date").HasColumnType("timestamp with time zone");
             entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(50).HasDefaultValue("Active");
+            entity.Property(e => e.CreatedByStudentId).HasColumnName("created_by_student_id");
+            entity.Property(e => e.CourseCycle).HasColumnName("course_cycle").HasMaxLength(50);
+            entity.Property(e => e.ExamStartDate).HasColumnName("exam_start_date").HasColumnType("timestamp with time zone");
+            entity.Property(e => e.ExamEndDate).HasColumnName("exam_end_date").HasColumnType("timestamp with time zone");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp with time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
         });
@@ -230,6 +234,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Score).HasColumnName("score").HasPrecision(5, 2);
             entity.Property(e => e.PassStatus).HasColumnName("pass_status").HasMaxLength(50);
             entity.Property(e => e.LastResultReminderDate).HasColumnName("last_result_reminder_date").HasColumnType("timestamp with time zone");
+            entity.Property(e => e.CertificateReadyReminderSentDate).HasColumnName("certificate_ready_reminder_sent_date").HasColumnType("timestamp with time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp with time zone");
 
             entity.HasOne(e => e.Registration)
