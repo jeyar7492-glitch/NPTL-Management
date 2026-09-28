@@ -12,6 +12,15 @@ public class StudentDashboardSummaryDto
     public int CertificatesReceived { get; set; }
 }
 
+public class AddStudentCourseDto
+{
+    public string CourseCode { get; set; } = string.Empty;
+    public string CourseName { get; set; } = string.Empty;
+    public int DurationWeeks { get; set; } = 12;
+    public DateTime? CourseStartDate { get; set; }
+    public DateTime? CourseEndDate { get; set; }
+}
+
 public class AvailableCourseDto
 {
     public Guid CourseId { get; set; }
