@@ -18,4 +18,9 @@ public interface IStaffReportService
         Guid staffUserId,
         string reportType,
         CancellationToken cancellationToken = default);
+
+    Task<byte[]> GenerateStudentXlsxAsync(
+        Guid staffUserId,
+        Guid studentId,
+        CancellationToken cancellationToken = default);
 }
