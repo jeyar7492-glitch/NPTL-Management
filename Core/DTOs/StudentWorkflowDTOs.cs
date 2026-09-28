@@ -17,9 +17,17 @@ public class AddStudentCourseDto
     public string CourseCode { get; set; } = string.Empty;
     public string CourseName { get; set; } = string.Empty;
     public int DurationWeeks { get; set; } = 12;
+    public string? CourseCycle { get; set; }
     public DateTime? CourseStartDate { get; set; }
     public DateTime? CourseEndDate { get; set; }
+    public DateTime? ExamStartDate { get; set; }
+    public DateTime? ExamEndDate { get; set; }
 }
+
+public class UpdateStudentCourseDto : AddStudentCourseDto
+{
+}
+
 
 public class AvailableCourseDto
 {
@@ -40,6 +48,10 @@ public class StudentCourseDto
     public int DurationWeeks { get; set; }
     public DateTime? CourseStartDate { get; set; }
     public DateTime? CourseEndDate { get; set; }
+    public string? CourseCycle { get; set; }
+    public DateTime? ExamStartDate { get; set; }
+    public DateTime? ExamEndDate { get; set; }
+    public bool CanEditDetails { get; set; }
     public DateTime EnrollmentDate { get; set; }
     public string RegistrationStatus { get; set; } = string.Empty;
 }
