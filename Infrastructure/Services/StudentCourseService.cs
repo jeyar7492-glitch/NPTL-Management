@@ -12,6 +12,17 @@ public class StudentCourseService : IStudentCourseService
 {
     private readonly ApplicationDbContext _context;
 
+    private static DateTime? ToUtc(DateTime? value)
+    {
+        if (!value.HasValue) return null;
+        return value.Value.Kind switch
+        {
+            DateTimeKind.Utc => value.Value,
+            DateTimeKind.Local => value.Value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)
+        };
+    }
+
     public StudentCourseService(ApplicationDbContext context)
     {
         _context = context;
@@ -112,6 +123,11 @@ public class StudentCourseService : IStudentCourseService
         if (dto.CourseStartDate.HasValue && dto.CourseEndDate.HasValue && dto.CourseEndDate < dto.CourseStartDate)
             throw new ArgumentException("Course end date cannot be earlier than the start date.");
 
+        dto.CourseStartDate = ToUtc(dto.CourseStartDate);
+        dto.CourseEndDate = ToUtc(dto.CourseEndDate);
+        dto.ExamStartDate = ToUtc(dto.ExamStartDate);
+        dto.ExamEndDate = ToUtc(dto.ExamEndDate);
+
         var cleanCode = dto.CourseCode.Trim().ToUpperInvariant();
         var existing = await _context.Courses
             .FirstOrDefaultAsync(c => c.CreatedByStudentId == studentId &&
@@ -166,6 +182,11 @@ public class StudentCourseService : IStudentCourseService
             throw new ArgumentException("Duration must be between 1 and 52 weeks.");
         if (dto.CourseEndDate.HasValue && dto.CourseStartDate.HasValue && dto.CourseEndDate < dto.CourseStartDate)
             throw new ArgumentException("Course end date cannot be earlier than the course start date.");
+        dto.CourseStartDate = ToUtc(dto.CourseStartDate);
+        dto.CourseEndDate = ToUtc(dto.CourseEndDate);
+        dto.ExamStartDate = ToUtc(dto.ExamStartDate);
+        dto.ExamEndDate = ToUtc(dto.ExamEndDate);
+
         if (dto.ExamEndDate.HasValue && dto.ExamStartDate.HasValue && dto.ExamEndDate < dto.ExamStartDate)
             throw new ArgumentException("Exam end date cannot be earlier than exam start date.");
 
