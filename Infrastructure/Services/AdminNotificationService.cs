@@ -287,6 +287,44 @@ public class AdminNotificationService : IAdminNotificationService
             generatedCount++;
         }
 
+        // Rule 3: One-week certificate readiness check after the student's exam ends.
+        // This is a one-time notification asking the student to check/update certificate status.
+        var certificateReadyCandidates = await _context.ExamStatuses
+            .Include(e => e.Registration)
+                .ThenInclude(r => r!.Student)
+            .Include(e => e.Registration)
+                .ThenInclude(r => r!.Course)
+            .Include(e => e.Registration)
+                .ThenInclude(r => r!.Certificate)
+            .Where(e => e.Registration != null &&
+                        e.Registration.Course != null &&
+                        e.Registration.Course.ExamEndDate.HasValue &&
+                        e.Registration.Course.ExamEndDate.Value <= now.AddDays(-7) &&
+                        e.CertificateReadyReminderSentDate == null &&
+                        e.Registration.Certificate != null &&
+                        e.Registration.Certificate.VerifiedStatus != CertificateStatus.Received)
+            .ToListAsync(cancellationToken);
+
+        foreach (var item in certificateReadyCandidates)
+        {
+            if (item.Registration?.Student == null) continue;
+
+            _context.Notifications.Add(new Notification
+            {
+                NotificationId = Guid.NewGuid(),
+                UserId = item.Registration.Student.UserId,
+                Title = "NPTEL Certificate Status Check",
+                Message = $"One week has passed since your NPTEL exam for '{item.Registration.Course?.CourseName}' ended. Please check whether your certificate is ready and update/upload the certificate details in the app.",
+                IsRead = false,
+                RelatedRegistrationId = item.RegistrationId,
+                CreatedAt = now
+            });
+
+            item.CertificateReadyReminderSentDate = now;
+            item.UpdatedAt = now;
+            generatedCount++;
+        }
+
         // Rule 2: Proctored Exam Date within 3 days
         var examDateLimit = now.AddDays(3);
         var scheduledExams = await _context.ExamStatuses
