@@ -9,6 +9,11 @@ public class Course
     public DateTime? CourseStartDate { get; set; }
     public DateTime? CourseEndDate { get; set; }
     public string Status { get; set; } = "Active";
+    // Null means admin/catalog-owned. A populated value makes the course private to that student.
+    public Guid? CreatedByStudentId { get; set; }
+    public string? CourseCycle { get; set; }
+    public DateTime? ExamStartDate { get; set; }
+    public DateTime? ExamEndDate { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
