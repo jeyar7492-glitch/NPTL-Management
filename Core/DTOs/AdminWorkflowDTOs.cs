@@ -191,6 +191,9 @@ public class AdminCourseDto
     public int DurationWeeks { get; set; }
     public DateTime? CourseStartDate { get; set; }
     public DateTime? CourseEndDate { get; set; }
+    public string? CourseCycle { get; set; }
+    public DateTime? ExamStartDate { get; set; }
+    public DateTime? ExamEndDate { get; set; }
     public string Status { get; set; } = "Active";
     public int TotalRegistrations { get; set; }
     public DateTime CreatedAt { get; set; }
