@@ -24,9 +24,13 @@ public class AddStudentCourseRequestDto
     public string CourseCode { get; set; } = string.Empty;
     public string CourseName { get; set; } = string.Empty;
     public int DurationWeeks { get; set; } = 12;
+    public string? CourseCycle { get; set; }
     public DateTime? CourseStartDate { get; set; }
     public DateTime? CourseEndDate { get; set; }
+    public DateTime? ExamStartDate { get; set; }
+    public DateTime? ExamEndDate { get; set; }
 }
+
 
 public class RegisterStudentCourseDto
 {
@@ -188,8 +192,11 @@ public class StudentController : ControllerBase
                     CourseCode = request.CourseCode,
                     CourseName = request.CourseName,
                     DurationWeeks = request.DurationWeeks,
+                    CourseCycle = request.CourseCycle,
                     CourseStartDate = request.CourseStartDate,
-                    CourseEndDate = request.CourseEndDate
+                    CourseEndDate = request.CourseEndDate,
+                    ExamStartDate = request.ExamStartDate,
+                    ExamEndDate = request.ExamEndDate
                 },
                 GetClientIp(),
                 cancellationToken);
@@ -201,6 +208,54 @@ public class StudentController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+    }
+
+    [HttpPut("courses/{registrationId:guid}/details")]
+    public async Task<IActionResult> UpdateCourseDetails(
+        [FromRoute] Guid registrationId,
+        [FromBody] AddStudentCourseRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        var (_, studentId) = await GetAuthenticatedStudentContextAsync(cancellationToken);
+        if (studentId == null)
+            return Unauthorized(ApiResponse<object>.FailureResponse("Invalid student token context."));
+
+        try
+        {
+            var details = await _studentCourseService.UpdateStudentCourseDetailsAsync(
+                studentId.Value,
+                registrationId,
+                new UpdateStudentCourseDto
+                {
+                    CourseCode = request.CourseCode,
+                    CourseName = request.CourseName,
+                    DurationWeeks = request.DurationWeeks,
+                    CourseCycle = request.CourseCycle,
+                    CourseStartDate = request.CourseStartDate,
+                    CourseEndDate = request.CourseEndDate,
+                    ExamStartDate = request.ExamStartDate,
+                    ExamEndDate = request.ExamEndDate
+                },
+                cancellationToken);
+
+            return Ok(ApiResponse<StudentCourseDetailsDto>.SuccessResponse(details, "NPTEL course details updated successfully."));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<object>.FailureResponse(ex.Message));
         }
         catch (ArgumentException ex)
         {
