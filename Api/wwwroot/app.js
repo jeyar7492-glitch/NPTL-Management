@@ -381,10 +381,11 @@
     $("welcomeBanner").innerHTML = banner("Your NPTEL learning journey", "Open any course to view timeline, exam and certificate details. New students can choose an NPTEL course below.");
     const courses = Array.isArray(result?.data) ? result.data : [];
     const availableCourses = Array.isArray(available?.data) ? available.data : [];
-    $("primaryHeading").textContent = "Registered Courses";
-    $("primaryContent").innerHTML = courseCards(courses) + availableCourseSection(availableCourses);
+    $("primaryHeading").textContent = "My NPTEL Courses";
+    $("primaryContent").innerHTML = addCourseSection() + courseCards(courses) + availableCourseSection(availableCourses);
     bindCourseButtons(courses);
     bindCourseEnrollmentButtons();
+    bindAddCourseForm();
     $("profileContent").innerHTML = '<div class="empty">Select a course to view timeline, exam and certificate details.</div>';
   }
 
@@ -647,6 +648,70 @@
 
     if (state.role === "Student") bindCourseButtons(items);
     else bindDetailButtons();
+  }
+
+  function addCourseSection() {
+    return '<div class="certificate-box course-picker-box">' +
+      '<div class="box-title">Add New NPTEL Course</div>' +
+      '<div class="data-meta">Enter the NPTEL course details. The course will be added to the catalog and registered to your account immediately.</div>' +
+      '<form id="addStudentCourseForm" class="form-grid course-add-form">' +
+        '<div><label>Course Code</label><input class="form-input" id="newCourseCode" placeholder="e.g. NPTEL24CS01" required></div>' +
+        '<div><label>Course Name</label><input class="form-input" id="newCourseName" placeholder="e.g. Programming in Java" required></div>' +
+        '<div><label>Duration (weeks)</label><input class="form-input" id="newCourseDuration" type="number" min="1" max="52" value="12" required></div>' +
+        '<div><label>Start Date</label><input class="form-input" id="newCourseStart" type="date"></div>' +
+        '<div><label>End Date</label><input class="form-input" id="newCourseEnd" type="date"></div>' +
+        '<div class="course-add-actions"><button class="primary-btn" type="submit">Add & Register Course</button><div id="addCourseMessage" class="form-message"></div></div>' +
+      '</form>' +
+      '</div>';
+  }
+
+  function bindAddCourseForm() {
+    const form = $("addStudentCourseForm");
+    if (!form || form.dataset.bound === "1") return;
+    form.dataset.bound = "1";
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      const message = $("addCourseMessage");
+      const button = form.querySelector("button[type=submit]");
+      const payload = {
+        courseCode: $("newCourseCode")?.value?.trim(),
+        courseName: $("newCourseName")?.value?.trim(),
+        durationWeeks: Number($("newCourseDuration")?.value || 12),
+        courseStartDate: $("newCourseStart")?.value || null,
+        courseEndDate: $("newCourseEnd")?.value || null
+      };
+
+      if (!payload.courseCode || !payload.courseName) {
+        message.textContent = "Course code and course name are required.";
+        return;
+      }
+      if (payload.durationWeeks < 1 || payload.durationWeeks > 52) {
+        message.textContent = "Duration must be between 1 and 52 weeks.";
+        return;
+      }
+      if (payload.courseStartDate && payload.courseEndDate && payload.courseEndDate < payload.courseStartDate) {
+        message.textContent = "End date cannot be earlier than start date.";
+        return;
+      }
+
+      button.disabled = true;
+      message.className = "form-message";
+      message.textContent = "Adding course…";
+      try {
+        await request("/api/v1/student/courses/add-and-register", {
+          method: "POST",
+          body: payload
+        });
+        state.cache.delete("/api/v1/student/courses");
+        state.cache.delete("/api/v1/student/available-courses");
+        state.cache.delete("/api/v1/student/dashboard-summary");
+        await loadStudentCourses(true);
+      } catch (err) {
+        message.textContent = err.message || "Unable to add course.";
+        button.disabled = false;
+        button.textContent = "Add & Register Course";
+      }
+    });
   }
 
   function availableCourseSection(items) {
