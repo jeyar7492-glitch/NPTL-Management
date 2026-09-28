@@ -180,6 +180,33 @@ public class StaffController : ControllerBase
         return Ok(ApiResponse<StaffReportPreviewDto>.SuccessResponse(report, "Report preview generated successfully."));
     }
 
+    [HttpGet("reports/export-xlsx/student/{studentId:guid}")]
+    public async Task<IActionResult> ExportStudentXlsx(
+        [FromRoute] Guid studentId,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == Guid.Empty)
+            return Unauthorized(ApiResponse<object>.FailureResponse("Invalid staff token context."));
+
+        try
+        {
+            var bytes = await _staffReportService.GenerateStudentXlsxAsync(userId, studentId, cancellationToken);
+            return File(
+                bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"NPTEL_Student_{studentId}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx");
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<object>.FailureResponse(ex.Message));
+        }
+    }
+
     [HttpGet("reports/export-csv")]
     public async Task<IActionResult> ExportCsv(
         [FromQuery] string reportType = "student-registration",
