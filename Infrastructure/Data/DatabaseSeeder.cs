@@ -756,7 +756,81 @@ public static class DatabaseSeeder
         });
 
         await context.SaveChangesAsync();
+
+    // Staff accounts are intentionally created only when explicitly requested by the clean profile.
+    // These accounts are scoped to their assigned CSE year/class and can be managed/reset by Admin.
+    var staffSeeds = new[]
+    {
+        new
+        {
+            UserId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+            StaffId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb01"),
+            Identifier = "CSE-STF-01",
+            Name = "CSE Year 3 Coordinator",
+            Email = "staff.cse03@college.edu",
+            Year = 3,
+            Class = "A"
+        },
+        new
+        {
+            UserId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb11"),
+            StaffId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb12"),
+            Identifier = "CSE-STF-101",
+            Name = "CSE Year 1 Coordinator",
+            Email = "staff.cse01@college.edu",
+            Year = 1,
+            Class = "A"
+        },
+        new
+        {
+            UserId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb21"),
+            StaffId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb22"),
+            Identifier = "CSE-STF-102",
+            Name = "CSE Year 2 Coordinator",
+            Email = "staff.cse02@college.edu",
+            Year = 2,
+            Class = "A"
+        },
+        new
+        {
+            UserId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb41"),
+            StaffId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb42"),
+            Identifier = "CSE-STF-104",
+            Name = "CSE Final Year Coordinator",
+            Email = "staff.cse04@college.edu",
+            Year = 4,
+            Class = "A"
+        }
+    };
+
+    foreach (var seed in staffSeeds)
+    {
+        if (!await context.Users.AnyAsync(u => u.Username == seed.Identifier))
+        {
+            context.Users.Add(new User
+            {
+                Id = seed.UserId,
+                Username = seed.Identifier,
+                PasswordHash = passwordHasher.HashPassword("Staff@Nptel2026"),
+                Role = UserRole.Staff,
+                Email = seed.Email,
+                IsActive = true
+            });
+
+            context.StaffMembers.Add(new Staff
+            {
+                StaffId = seed.StaffId,
+                UserId = seed.UserId,
+                StaffName = seed.Name,
+                StaffIdentifier = seed.Identifier,
+                Department = "CSE",
+                AssignedYear = seed.Year,
+                AssignedClass = seed.Class
+            });
+        }
     }
+
+    await context.SaveChangesAsync();
 }
 
 }
