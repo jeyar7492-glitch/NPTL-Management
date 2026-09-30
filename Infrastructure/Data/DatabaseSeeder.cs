@@ -756,6 +756,7 @@ public static class DatabaseSeeder
         });
 
         await context.SaveChangesAsync();
+    }
 
     // Staff accounts are intentionally created only when explicitly requested by the clean profile.
     // These accounts are scoped to their assigned CSE year/class and can be managed/reset by Admin.
