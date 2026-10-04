@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-labelledby="title desc">
+  <title>NPTEL</title>
+  <desc>NPTEL Management System app mark.</desc>
+  <defs>
+    <linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0A1638"/><stop offset=".6" stop-color="#1746B1"/><stop offset="1" stop-color="#06112E"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFE9A0"/><stop offset=".5" stop-color="#E7B64A"/><stop offset="1" stop-color="#9B5F12"/></linearGradient>
+  </defs>
+  <rect x="10" y="10" width="300" height="300" rx="70" fill="#0B1634"/>
+  <path d="M66 86 L126 63 L260 98 L200 122 Z" fill="url(#b)" stroke="#2E68E9" stroke-width="5"/>
+  <path d="M104 112 L169 128 L169 222 L104 206 Z" fill="url(#b)"/>
+  <path d="M169 128 C206 129 236 116 258 100 L258 135 C234 157 205 169 169 169 Z" fill="url(#g)"/>
+  <path d="M74 224 C120 201 150 203 188 226 C207 238 225 244 250 239 C270 235 286 223 297 211" fill="none" stroke="#2C67ED" stroke-width="12" stroke-linecap="round"/>
+  <path d="M74 224 C120 201 150 203 188 226 C207 238 225 244 250 239 C270 235 286 223 297 211" fill="none" stroke="url(#g)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M178 135 L206 142 L206 172 L178 165 Z" fill="#3F2ACB"/>
+  <path d="M184 143 L202 151 L184 160 Z" fill="#E3E1FF"/>
+</svg>
