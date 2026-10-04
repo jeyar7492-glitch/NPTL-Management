@@ -8,7 +8,9 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icon-192.svg" type="image/svg+xml">
+  <link rel="icon" href="/brand-mark.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/brand-mark.svg">
+  <meta name="application-name" content="NPTEL Management System">
   <link rel="stylesheet" href="/styles.css">
   <title>NPTEL Management</title>
 </head>
@@ -16,7 +18,7 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">N</div>
+        <div class="brand-mark"><img src="/brand-mark.svg" alt="NPTEL"></div>
         <div>
           <div class="brand-title">NPTEL</div>
           <div class="brand-sub">Management System</div>
@@ -44,7 +46,7 @@
         </div>
       </header>
 
-      <section id="loginView" class="view">
+      <section id="loginView" class="view" hidden>
         <div class="auth-grid">
           <div class="auth-hero">
             <span class="pill">PWA • Chrome • Windows</span>
@@ -129,7 +131,8 @@
         </div>
       </section>
 
-      <section id="loadingView" class="loading-view" hidden>
+      <section id="loadingView" class="loading-view">
+        <img class="loading-logo" src="/brand-logo.svg" alt="NPTEL Management System">
         <div class="spinner"></div>
         <p>Connecting to NPTEL Management API…</p>
       </section>
