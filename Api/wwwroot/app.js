@@ -5,7 +5,8 @@
     user: JSON.parse(sessionStorage.getItem("nptel_user") || "null"),
     deferredInstall: null,
     currentPage: "dashboard",
-    cache: new Map()
+    cache: new Map(),
+    booting: true
   };
 
   let notificationWatcher = null;
@@ -1345,9 +1346,25 @@
     $("newStudentLink").hidden = state.role !== "Student";
   }
 
-  function showLoading(_visible) {
-    // Navigation must remain clickable even while API requests are running.
-    loadingView.hidden = true;
+  function showLoading(visible) {
+    if (visible && state.booting) {
+      loadingView.hidden = false;
+      loginView.hidden = true;
+      dashboardView.hidden = true;
+      return;
+    }
+
+    if (!visible) {
+      loadingView.hidden = true;
+      state.booting = false;
+      if (state.token) {
+        dashboardView.hidden = false;
+        loginView.hidden = true;
+      } else {
+        loginView.hidden = false;
+        dashboardView.hidden = true;
+      }
+    }
   }
 
   async function checkApi() {
