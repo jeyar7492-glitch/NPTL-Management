@@ -1,4 +1,4 @@
-const CACHE = "nptel-pwa-shell-v7";
+const CACHE = "nptel-pwa-shell-v8";
 const ASSETS = ["/","/index.html","/styles.css","/app.js","/manifest.webmanifest","/brand-logo.svg","/brand-mark.svg"];
 
 self.addEventListener("install", event => {
