@@ -177,10 +177,11 @@ public class AdminStudentService : IAdminStudentService
             throw new ArgumentException("Academic year is required.");
 
         var cleanReg = dto.RegisterNumber.Trim();
-        if (await _context.Students.AnyAsync(s => s.RegisterNumber == cleanReg, cancellationToken) ||
-            await _context.Users.AnyAsync(u => u.Username == cleanReg, cancellationToken))
+        var normalizedReg = cleanReg.ToUpperInvariant();
+        if (await _context.Students.AnyAsync(s => s.RegisterNumber.ToUpper() == normalizedReg, cancellationToken) ||
+            await _context.Users.AnyAsync(u => u.Username.ToUpper() == normalizedReg, cancellationToken))
         {
-            throw new InvalidOperationException($"A student or user with register number '{cleanReg}' already exists.");
+            throw new InvalidOperationException($"Register Number '{cleanReg}' already has an account. Please sign in or use a different Register Number.");
         }
 
         // 2. Create User identity
