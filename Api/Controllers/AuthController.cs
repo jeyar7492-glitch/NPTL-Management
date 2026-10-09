@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NPTELManagement.Core.Common;
@@ -126,6 +127,23 @@ public class AuthController : ControllerBase
         catch (InvalidOperationException ex)
         {
             return Conflict(ApiResponse<object>.FailureResponse(ex.Message));
+        }
+        catch (DbUpdateException ex)
+        {
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            _logger.LogWarning(ex, "Student registration could not save the account.");
+
+            if (detail.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) ||
+                detail.Contains("unique constraint", StringComparison.OrdinalIgnoreCase) ||
+                detail.Contains("IX_users_username", StringComparison.OrdinalIgnoreCase) ||
+                detail.Contains("IX_students_register_number", StringComparison.OrdinalIgnoreCase))
+            {
+                return Conflict(ApiResponse<object>.FailureResponse(
+                    "This Register Number may already have an account. Please sign in with that Register Number or use a different one."));
+            }
+
+            return StatusCode(503, ApiResponse<object>.FailureResponse(
+                "The account database is temporarily unavailable. Please wait a moment and retry."));
         }
     }
 
