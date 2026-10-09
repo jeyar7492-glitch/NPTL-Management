@@ -152,13 +152,19 @@
       return;
     }
 
+    const createButton = $("createStudentAccountBtn");
+    const originalButtonText = createButton?.textContent || "Create Account";
+    if (createButton) {
+      createButton.disabled = true;
+      createButton.textContent = "Creating account…";
+    }
     message.textContent = "Creating student account…";
     try {
       const result = await request("/api/v1/auth/student/register", {
         method: "POST",
         body: payload,
         auth: false,
-        timeoutMs: 15000
+        timeoutMs: 60000
       });
       const data = result?.data;
       if (!data?.accessToken) throw new Error(result?.message || "Account creation failed.");
@@ -177,8 +183,40 @@
       }
       await openDashboard(true);
     } catch (err) {
-      message.className = "form-message";
-      message.textContent = err.message || "Account creation failed.";
+      // If the server saved the account but the create response was delayed, try signing in once
+      // so the student is not asked to create the same account again.
+      if (String(err.message || "").includes("API request timed out")) {
+        try {
+          const login = await request("/api/v1/auth/student/login", {
+            method: "POST",
+            body: { registerNumber: payload.registerNumber, password: payload.password },
+            auth: false,
+            timeoutMs: 15000
+          });
+          if (login?.data?.accessToken) {
+            state.token = login.data.accessToken;
+            state.role = "Student";
+            state.user = login.data;
+            sessionStorage.setItem("nptel_token", state.token);
+            sessionStorage.setItem("nptel_user", JSON.stringify(state.user));
+            state.cache.clear();
+            message.className = "form-message success";
+            message.textContent = "Account is ready. Signing you in…";
+            await openDashboard(true);
+            return;
+          }
+        } catch (_) {}
+        message.className = "form-message";
+        message.textContent = "The server took too long to respond. Your account may already be created. Try signing in with the same Register Number and password before submitting again.";
+      } else {
+        message.className = "form-message";
+        message.textContent = err.message || "Account creation failed.";
+      }
+    } finally {
+      if (createButton) {
+        createButton.disabled = false;
+        createButton.textContent = originalButtonText;
+      }
     }
   });
 
