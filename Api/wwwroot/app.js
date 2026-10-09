@@ -191,7 +191,7 @@
             method: "POST",
             body: { registerNumber: payload.registerNumber, password: payload.password },
             auth: false,
-            timeoutMs: 15000
+            timeoutMs: 60000
           });
           if (login?.data?.accessToken) {
             state.token = login.data.accessToken;
@@ -207,7 +207,7 @@
           }
         } catch (_) {}
         message.className = "form-message";
-        message.textContent = "The server took too long to respond. Your account may already be created. Try signing in with the same Register Number and password before submitting again.";
+        message.textContent = "Registration timed out and the sign-in check also timed out. Do not register again yet—refresh the page and try signing in with the same Register Number and password first.";
       } else {
         message.className = "form-message";
         message.textContent = err.message || "Account creation failed.";
