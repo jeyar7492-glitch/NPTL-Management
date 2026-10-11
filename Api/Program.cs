@@ -261,7 +261,17 @@ app.UseForwardedHeaders();
 // Serve the browser/PWA client from Api/wwwroot on the same origin as the API.
 // This keeps browser authentication same-origin and avoids a separate frontend server.
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        // Always revalidate HTML/client bundles so a sleeping browser/PWA cannot keep
+        // submitting registrations with an older API timeout/recovery implementation.
+        context.Context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+        context.Context.Response.Headers.Pragma = "no-cache";
+        context.Context.Response.Headers.Expires = "0";
+    }
+});
 
 // Enforce HTTPS redirection and HSTS in non-development environments
 if (!app.Environment.IsDevelopment())
