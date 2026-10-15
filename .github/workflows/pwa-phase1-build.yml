@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - pwa-phase1
+  pull_request:
+    branches:
+      - pwa-phase1
 
 jobs:
   build-api-and-pwa:
@@ -31,6 +34,44 @@ jobs:
           test -f Api/wwwroot/styles.css
           test -f Api/wwwroot/manifest.webmanifest
           test -f Api/wwwroot/sw.js
+          test -f Api/wwwroot/brand-logo.svg
+          test -f Api/wwwroot/brand-mark.svg
           test -f Api/wwwroot/icon-192.svg
           test -f Api/wwwroot/icon-512.svg
           echo "PWA shell files present."
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check Api/wwwroot/app.js
+          node --check Api/wwwroot/sw.js
+
+      - name: Verify PWA asset references and cache list
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, re, sys
+          root = pathlib.Path("Api/wwwroot")
+          html = (root / "index.html").read_text()
+          sw = (root / "sw.js").read_text()
+          manifest = json.loads((root / "manifest.webmanifest").read_text())
+          refs = re.findall(r'(?:src|href)="(/[^"]+)', html)
+          refs += [item["src"] for item in manifest.get("icons", [])]
+          refs += re.findall(r'"(/[^"]+)"', sw.split("self.addEventListener", 1)[0])
+          missing = []
+          for ref in refs:
+              path = ref.split("?", 1)[0].split("#", 1)[0]
+              if path == "/":
+                  path = "/index.html"
+              path = path.lstrip("/")
+              if path and not (root / path).is_file():
+                  missing.append(ref)
+          if missing:
+              print("Missing PWA assets:", *missing, sep="\n- ")
+              sys.exit(1)
+          print("PWA assets and service-worker cache references: OK")
+          PY
