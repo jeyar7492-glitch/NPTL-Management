@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 760" role="img" aria-labelledby="title desc">
+  <title>NPTEL Management System</title>
+  <desc>Premium navy, royal blue and gold NPTEL education management logo with graduation cap, play icon and open book.</desc>
+  <defs>
+    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0A1638"/><stop offset=".55" stop-color="#123A8C"/><stop offset="1" stop-color="#06112E"/></linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2F6BFF"/><stop offset="1" stop-color="#0E2A8A"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE9A0"/><stop offset=".45" stop-color="#E7B64A"/><stop offset="1" stop-color="#A96A12"/></linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6A5CFF"/><stop offset="1" stop-color="#2F1BB6"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-opacity=".26"/></filter>
+  </defs>
+
+  <g transform="translate(50 24)" filter="url(#shadow)">
+    <path d="M320 110 L610 35 L750 90 L458 165 Z" fill="url(#navy)" stroke="#2B63D9" stroke-width="4"/>
+    <path d="M457 165 C510 173 575 155 610 132 L610 55 C575 82 516 95 457 92 Z" fill="#0B1D4C"/>
+    <path d="M695 82 L720 94 L706 215 C703 224 691 224 687 215 Z" fill="url(#gold)"/>
+    <circle cx="698" cy="87" r="11" fill="url(#gold)"/>
+
+    <path d="M155 130 L205 160 L205 430 L155 462 Z" fill="url(#navy)" stroke="#173B8A" stroke-width="4"/>
+    <path d="M205 160 L420 210 L420 430 L205 430 Z" fill="url(#blue)" opacity=".96"/>
+    <path d="M205 160 L420 210 L420 430 L205 430 Z" fill="url(#navy)" opacity=".56"/>
+
+    <path d="M420 210 C500 210 565 188 620 150 L620 230 C566 286 500 316 420 318 Z" fill="url(#navy)" stroke="#1746AE" stroke-width="4"/>
+    <path d="M420 210 C500 210 565 188 620 150 L620 190 C560 238 495 258 420 262 Z" fill="url(#gold)"/>
+
+    <path d="M280 214 L360 236 L360 316 L280 294 Z" fill="#0B2A75"/>
+    <path d="M302 228 L342 239 L342 279 L302 268 Z" fill="url(#violet)"/>
+    <path d="M311 235 L337 257 L311 272 Z" fill="#D6D5FF"/>
+
+    <path d="M68 458 C140 420 190 420 250 457 C280 475 301 490 345 495 C440 506 536 474 634 394 C674 361 708 345 742 345"
+          fill="none" stroke="#2261E7" stroke-width="18" stroke-linecap="round"/>
+    <path d="M68 458 C140 420 190 420 250 457 C280 475 301 490 345 495 C440 506 536 474 634 394 C674 361 708 345 742 345"
+          fill="none" stroke="url(#gold)" stroke-width="7" stroke-linecap="round" stroke-dasharray="0 0"/>
+
+    <path d="M68 460 L20 490 L112 524 L222 472 L170 447 Z" fill="#E7ECFA"/>
+    <path d="M20 490 L112 524 L222 472 L205 505 L113 550 L20 520 Z" fill="url(#blue)" opacity=".92"/>
+  </g>
+
+  <text x="400" y="585" text-anchor="middle" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="88" font-weight="900" letter-spacing="8" fill="url(#navy)">NPTEL</text>
+  <text x="400" y="635" text-anchor="middle" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="24" font-weight="700" letter-spacing="10" fill="#17315F">MANAGEMENT SYSTEM</text>
+  <path d="M160 677 H270" stroke="url(#gold)" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="291" cy="677" r="4" fill="#E7B64A"/>
+  <text x="400" y="685" text-anchor="middle" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="18" font-weight="700" letter-spacing="5" fill="#17315F">LEARN · TRACK · ACHIEVE</text>
+  <circle cx="509" cy="677" r="4" fill="#E7B64A"/>
+  <path d="M530 677 H640" stroke="url(#gold)" stroke-width="6" stroke-linecap="round"/>
+</svg>

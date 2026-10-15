@@ -241,7 +241,7 @@
     if (opts.auth !== false && state.token) headers.Authorization = "Bearer " + state.token;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), opts.timeoutMs || 12000);
+    const timeout = setTimeout(() => controller.abort(), opts.timeoutMs || 30000);
 
     let response;
     try {
@@ -1373,7 +1373,12 @@
 
   function showLogin() {
     loginView.hidden = false;
+    loginView.style.display = "";
     dashboardView.hidden = true;
+    dashboardView.style.display = "none";
+    loadingView.hidden = true;
+    loadingView.style.display = "none";
+    state.booting = false;
     $("logoutBtn").hidden = true;
     $("installBtn").hidden = !state.deferredInstall;
     $("roleBadge").textContent = "Guest";
@@ -1387,20 +1392,28 @@
   function showLoading(visible) {
     if (visible && state.booting) {
       loadingView.hidden = false;
+      loadingView.style.display = "";
       loginView.hidden = true;
+      loginView.style.display = "none";
       dashboardView.hidden = true;
+      dashboardView.style.display = "none";
       return;
     }
 
     if (!visible) {
       loadingView.hidden = true;
+      loadingView.style.display = "none";
       state.booting = false;
       if (state.token) {
         dashboardView.hidden = false;
+        dashboardView.style.display = "";
         loginView.hidden = true;
+        loginView.style.display = "none";
       } else {
         loginView.hidden = false;
+        loginView.style.display = "";
         dashboardView.hidden = true;
+        dashboardView.style.display = "none";
       }
     }
   }

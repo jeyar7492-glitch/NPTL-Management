@@ -30,9 +30,15 @@ public class StudentRepository : IStudentRepository
 
     public async Task<Student?> GetByRegisterNumberAsync(string registerNumber, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(registerNumber))
+        {
+            return null;
+        }
+
+        var normalized = registerNumber.Trim().ToUpper();
         return await _context.Students
             .Include(s => s.User)
-            .FirstOrDefaultAsync(s => s.RegisterNumber == registerNumber, cancellationToken);
+            .FirstOrDefaultAsync(s => s.RegisterNumber.ToUpper() == normalized, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Student>> GetAssignedStudentsAsync(

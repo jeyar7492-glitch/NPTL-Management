@@ -1,5 +1,5 @@
-const CACHE = "nptel-pwa-shell-v10";
-const ASSETS = ["/","/index.html","/styles.css?v=nptel-20261011-r1","/app.js?v=nptel-20261011-r1","/manifest.webmanifest?v=nptel-20261011-r1","/brand-logo.svg?v=nptel-20261011-r1","/brand-mark.svg?v=nptel-20261011-r1"];
+const CACHE = "nptel-pwa-shell-v12";
+const ASSETS = ["/","/index.html","/styles.css?v=nptel-20261015-r3","/app.js?v=nptel-20261015-r3","/manifest.webmanifest?v=nptel-20261015-r3","/brand-logo.svg?v=nptel-20261015-r3","/brand-mark.svg?v=nptel-20261015-r3"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
