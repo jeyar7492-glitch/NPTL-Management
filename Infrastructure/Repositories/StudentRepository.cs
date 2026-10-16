@@ -28,17 +28,41 @@ public class StudentRepository : IStudentRepository
             .FirstOrDefaultAsync(s => s.UserId == userId, cancellationToken);
     }
 
-    public async Task<Student?> GetByRegisterNumberAsync(string registerNumber, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Student>> GetByIdentifierCandidatesAsync(string identifier, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(registerNumber))
+        if (string.IsNullOrWhiteSpace(identifier))
         {
-            return null;
+            return Array.Empty<Student>();
         }
 
-        var normalized = registerNumber.Trim().ToUpper();
-        return await _context.Students
+        var normalized = identifier.Trim().ToUpper();
+
+        // 1. Direct match on RegisterNumber (highest priority, unique index)
+        var exact = await _context.Students
             .Include(s => s.User)
             .FirstOrDefaultAsync(s => s.RegisterNumber.ToUpper() == normalized, cancellationToken);
+
+        if (exact != null)
+        {
+            return new[] { exact };
+        }
+
+        // 2. Query candidates by Email (Student or User), Username, or Name
+        return await _context.Students
+            .Include(s => s.User)
+            .Where(s =>
+                (s.Email != null && s.Email.ToUpper() == normalized) ||
+                (s.User != null && s.User.Email != null && s.User.Email.ToUpper() == normalized) ||
+                (s.User != null && s.User.Username.ToUpper() == normalized) ||
+                s.Name.ToUpper() == normalized)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Student?> GetByRegisterNumberAsync(string registerNumber, CancellationToken cancellationToken = default)
+    {
+        var candidates = await GetByIdentifierCandidatesAsync(registerNumber, cancellationToken);
+        return candidates.FirstOrDefault();
     }
 
     public async Task<IReadOnlyList<Student>> GetAssignedStudentsAsync(

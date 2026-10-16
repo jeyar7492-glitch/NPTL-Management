@@ -53,10 +53,10 @@
       tab.classList.add("active");
       state.role = tab.dataset.role;
       $("identifierLabel").textContent =
-        state.role === "Student" ? "Register Number" :
+        state.role === "Student" ? "Register Number or Email" :
         state.role === "Staff" ? "Staff ID" : "Admin ID";
       $("identifier").placeholder =
-        state.role === "Student" ? "e.g. 951021104001" :
+        state.role === "Student" ? "e.g. 24CSE001 or you@college.edu" :
         state.role === "Staff" ? "e.g. CSE-STF-01" : "e.g. ADM-CSE-01";
       loginMessage.textContent = "";
       toggleStudentRegistration(false);

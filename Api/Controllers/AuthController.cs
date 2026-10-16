@@ -162,25 +162,37 @@ public class AuthController : ControllerBase
                 $"Too many failed attempts. Please try again in {Math.Ceiling(remaining?.TotalMinutes ?? 5)} minute(s)."));
         }
 
-        var student = await _studentRepository.GetByRegisterNumberAsync(request.RegisterNumber.Trim(), cancellationToken);
-        if (student == null || student.User == null || !student.User.IsActive || student.User.Role != UserRole.Student)
+        var candidates = await _studentRepository.GetByIdentifierCandidatesAsync(request.RegisterNumber.Trim(), cancellationToken);
+        if (!candidates.Any())
         {
             _rateLimiter.RecordFailedAttempt(rateLimitKey);
             await LogAuditAsync(null, "StudentLoginFailed", $"Failed login attempt for register number: {request.RegisterNumber}", cancellationToken);
             return Unauthorized(ApiResponse<object>.FailureResponse("Invalid credentials."));
         }
 
-        if (!_passwordHasher.VerifyPassword(request.Password, student.User.PasswordHash))
+        Student? student = null;
+        foreach (var candidate in candidates)
+        {
+            if (candidate.User != null && candidate.User.IsActive && candidate.User.Role == UserRole.Student &&
+                _passwordHasher.VerifyPassword(request.Password, candidate.User.PasswordHash))
+            {
+                student = candidate;
+                break;
+            }
+        }
+
+        if (student == null)
         {
             _rateLimiter.RecordFailedAttempt(rateLimitKey);
-            await LogAuditAsync(student.UserId, "StudentLoginFailed", "Password verification failed", cancellationToken);
+            var firstCandidate = candidates.FirstOrDefault();
+            await LogAuditAsync(firstCandidate?.UserId, "StudentLoginFailed", "Password verification failed", cancellationToken);
             return Unauthorized(ApiResponse<object>.FailureResponse("Invalid credentials."));
         }
 
         _rateLimiter.ResetAttempts(rateLimitKey);
 
         var token = _jwtTokenService.GenerateToken(
-            student.User,
+            student.User!,
             student.RegisterNumber,
             student.Name,
             roleSpecificId: student.StudentId,
@@ -314,7 +326,7 @@ public class AuthController : ControllerBase
 
     private string GetClientIp()
     {
-        return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return HttpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown";
     }
 
     private async Task LogAuditAsync(Guid? userId, string action, string details, CancellationToken cancellationToken)
