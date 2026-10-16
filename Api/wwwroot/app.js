@@ -82,14 +82,44 @@
   newStudentLink?.addEventListener("click", () => toggleStudentRegistration(true));
   backToLoginBtn?.addEventListener("click", () => toggleStudentRegistration(false));
 
+  const signInBtn = $("signInBtn");
+
   $("loginForm").addEventListener("submit", async e => {
     e.preventDefault();
     loginMessage.className = "form-message";
     loginMessage.textContent = "";
-    showLoading(true);
 
-    const identifier = $("identifier").value.trim();
-    const password = $("password").value;
+    const identifierInput = $("identifier");
+    const passwordInput = $("password");
+    const identifier = identifierInput ? identifierInput.value.trim() : "";
+    const password = passwordInput ? passwordInput.value : "";
+
+    if (!identifier) {
+      loginMessage.className = "form-message error";
+      loginMessage.textContent = state.role === "Student"
+        ? "Please enter your Register Number or Email."
+        : (state.role === "Staff" ? "Please enter your Staff ID." : "Please enter your Admin ID.");
+      identifierInput?.focus();
+      console.warn("[Auth] Login validation halted: missing identifier for role " + state.role);
+      return;
+    }
+
+    if (!password) {
+      loginMessage.className = "form-message error";
+      loginMessage.textContent = "Please enter your password.";
+      passwordInput?.focus();
+      console.warn("[Auth] Login validation halted: missing password for role " + state.role);
+      return;
+    }
+
+    const originalButtonText = signInBtn?.textContent || "Sign in";
+    if (signInBtn) {
+      signInBtn.disabled = true;
+      signInBtn.textContent = "Signing in…";
+    }
+    loginMessage.className = "form-message";
+    loginMessage.textContent = "Signing in…";
+    showLoading(true);
 
     const endpoint =
       state.role === "Student" ? "/api/v1/auth/student/login" :
@@ -103,6 +133,8 @@
           ? { staffId: identifier, password }
           : { adminId: identifier, password };
 
+    console.log("[Auth] Dispatching login request for role: " + state.role);
+
     try {
       const result = await request(endpoint, { method: "POST", body: payload, auth: false });
       const data = result?.data;
@@ -112,13 +144,28 @@
       sessionStorage.setItem("nptel_token", state.token);
       sessionStorage.setItem("nptel_user", JSON.stringify(state.user));
       state.cache.clear();
+      loginMessage.className = "form-message success";
+      loginMessage.textContent = "Signed in successfully. Opening dashboard…";
+      console.log("[Auth] Login succeeded for role: " + state.role);
       if (state.role === "Student" && "Notification" in window && Notification.permission === "default") {
         try { await Notification.requestPermission(); } catch (_) {}
       }
       await openDashboard();
     } catch (err) {
+      console.error("[Auth] Login error for role " + state.role + ": " + (err.message || "Unknown error"));
+      loginMessage.className = "form-message error";
       loginMessage.textContent = err.message || "Unable to sign in.";
+      if (state.token) {
+        sessionStorage.removeItem("nptel_token");
+        sessionStorage.removeItem("nptel_user");
+        state.token = null;
+        state.user = null;
+      }
     } finally {
+      if (signInBtn) {
+        signInBtn.disabled = false;
+        signInBtn.textContent = originalButtonText;
+      }
       showLoading(false);
     }
   });
@@ -1387,6 +1434,11 @@
     $("nav").innerHTML = "";
     toggleStudentRegistration(false);
     $("newStudentLink").hidden = state.role !== "Student";
+    const signInBtn = $("signInBtn");
+    if (signInBtn) {
+      signInBtn.disabled = false;
+      signInBtn.textContent = "Sign in";
+    }
   }
 
   function showLoading(visible) {
