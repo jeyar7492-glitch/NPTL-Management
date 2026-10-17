@@ -179,80 +179,105 @@ public class AdminStaffService : IAdminStaffService
 
         var cleanId = dto.StaffIdentifier.Trim();
         var cleanUsername = !string.IsNullOrWhiteSpace(dto.Username) ? dto.Username.Trim() : cleanId;
+        var department = !string.IsNullOrWhiteSpace(dto.Department) ? dto.Department.Trim() : "CSE";
+        var assignedClass = !string.IsNullOrWhiteSpace(dto.AssignedClass) ? dto.AssignedClass.Trim() : "A";
+        var staffName = dto.StaffName.Trim();
+        var hashedPassword = _passwordHasher.HashPassword(dto.InitialPassword);
+        var desig = !string.IsNullOrWhiteSpace(dto.Designation) ? dto.Designation.Trim() : $"Faculty Advisor (Sec {assignedClass})";
 
-        // Check uniqueness across Staff and User records (case-insensitive)
-        if (await _context.StaffMembers.AnyAsync(s => s.StaffIdentifier.ToUpper() == cleanId.ToUpper(), cancellationToken))
+        Guid createdStaffId = Guid.Empty;
+
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            throw new InvalidOperationException($"Staff member with Staff ID '{cleanId}' already exists.");
-        }
+            _context.ChangeTracker.Clear();
 
-        if (await _context.Users.AnyAsync(u => u.Username.ToUpper() == cleanUsername.ToUpper(), cancellationToken))
-        {
-            throw new InvalidOperationException($"Account with username '{cleanUsername}' already exists.");
-        }
+            // Recheck uniqueness safely in case of retry
+            var existingStaff = await _context.StaffMembers
+                .Include(s => s.User)
+                .FirstOrDefaultAsync(s => s.StaffIdentifier.ToUpper() == cleanId.ToUpper(), cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(cleanEmail) &&
-            await _context.Users.AnyAsync(u => u.Email != null && u.Email.ToUpper() == cleanEmail.ToUpper(), cancellationToken))
-        {
-            throw new InvalidOperationException($"An account with email '{cleanEmail}' is already registered.");
-        }
-
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            Username = cleanUsername,
-            PasswordHash = _passwordHasher.HashPassword(dto.InitialPassword),
-            Role = UserRole.Staff,
-            Email = cleanEmail,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        var staff = new Staff
-        {
-            StaffId = Guid.NewGuid(),
-            UserId = user.Id,
-            StaffName = dto.StaffName.Trim(),
-            StaffIdentifier = cleanId,
-            Department = !string.IsNullOrWhiteSpace(dto.Department) ? dto.Department.Trim() : "CSE",
-            AssignedYear = dto.AssignedYear,
-            AssignedClass = !string.IsNullOrWhiteSpace(dto.AssignedClass) ? dto.AssignedClass.Trim() : "A",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        var isRelational = _context.Database.IsRelational();
-        using var transaction = isRelational ? await _context.Database.BeginTransactionAsync(cancellationToken) : null;
-        try
-        {
-            _context.Users.Add(user);
-            _context.StaffMembers.Add(staff);
-            await _context.SaveChangesAsync(cancellationToken);
-
-            if (transaction != null)
+            if (existingStaff != null)
             {
-                await transaction.CommitAsync(cancellationToken);
-            }
-        }
-        catch
-        {
-            if (transaction != null)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-            }
-            throw;
-        }
+                // If a transient failure occurred after commit during an earlier retry attempt of this exact request:
+                if (existingStaff.User != null && string.Equals(existingStaff.User.Username, cleanUsername, StringComparison.OrdinalIgnoreCase))
+                {
+                    createdStaffId = existingStaff.StaffId;
+                    return;
+                }
 
-        var desig = !string.IsNullOrWhiteSpace(dto.Designation) ? dto.Designation.Trim() : $"Faculty Advisor (Sec {staff.AssignedClass})";
+                throw new InvalidOperationException($"Staff member with Staff ID '{cleanId}' already exists.");
+            }
+
+            if (await _context.Users.AnyAsync(u => u.Username.ToUpper() == cleanUsername.ToUpper(), cancellationToken))
+            {
+                throw new InvalidOperationException($"Account with username '{cleanUsername}' already exists.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(cleanEmail) &&
+                await _context.Users.AnyAsync(u => u.Email != null && u.Email.ToUpper() == cleanEmail.ToUpper(), cancellationToken))
+            {
+                throw new InvalidOperationException($"An account with email '{cleanEmail}' is already registered.");
+            }
+
+            var isRelational = _context.Database.IsRelational();
+            using var transaction = isRelational ? await _context.Database.BeginTransactionAsync(cancellationToken) : null;
+            try
+            {
+                var user = new User
+                {
+                    Id = Guid.NewGuid(),
+                    Username = cleanUsername,
+                    PasswordHash = hashedPassword,
+                    Role = UserRole.Staff,
+                    Email = cleanEmail,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                var staff = new Staff
+                {
+                    StaffId = Guid.NewGuid(),
+                    UserId = user.Id,
+                    StaffName = staffName,
+                    StaffIdentifier = cleanId,
+                    Department = department,
+                    AssignedYear = dto.AssignedYear,
+                    AssignedClass = assignedClass,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+
+                _context.Users.Add(user);
+                _context.StaffMembers.Add(staff);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                }
+
+                createdStaffId = staff.StaffId;
+            }
+            catch
+            {
+                if (transaction != null)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                }
+                throw;
+            }
+        });
+
         await _auditLogService.LogAsync(
             "Staff Created", 
-            $"Created faculty {staff.StaffName} ({staff.StaffIdentifier}, @{user.Username}) with designation '{desig}' assigned to {staff.Department} Y{staff.AssignedYear} Sec {staff.AssignedClass}", 
+            $"Created faculty {staffName} ({cleanId}, @{cleanUsername}) with designation '{desig}' assigned to {department} Y{dto.AssignedYear} Sec {assignedClass}", 
             adminUserId, 
             ipAddress, 
             cancellationToken);
 
-        var result = await GetStaffByIdAsync(staff.StaffId, cancellationToken);
+        var result = await GetStaffByIdAsync(createdStaffId, cancellationToken);
         if (result != null && !string.IsNullOrWhiteSpace(dto.Designation))
         {
             result.Designation = dto.Designation.Trim();

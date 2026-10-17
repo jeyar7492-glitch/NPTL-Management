@@ -500,4 +500,77 @@ public class StaffManagementTests
         Assert.Null(detailDtoType.GetProperty("PasswordHash"));
         Assert.Null(detailDtoType.GetProperty("InitialPassword"));
     }
+
+    [Fact]
+    public async Task CreateStaffAsync_ExecutionStrategy_HandlesRetryWithoutDuplicateError()
+    {
+        var (staffService, hasher, context) = CreateStaffService();
+
+        var dto = new CreateStaffDto
+        {
+            StaffIdentifier = "STF-RETRY-001",
+            StaffName = "Prof. Retry Test",
+            Username = "retry_test",
+            Email = "retry@college.edu",
+            Department = "CSE",
+            Designation = "Assistant Professor",
+            AssignedYear = 2,
+            AssignedClass = "B",
+            InitialPassword = "RetryPassword2026!",
+            ConfirmPassword = "RetryPassword2026!"
+        };
+
+        // First execution creates the staff member
+        var firstResult = await staffService.CreateStaffAsync(dto, null, null);
+        Assert.NotNull(firstResult);
+        Assert.Equal("STF-RETRY-001", firstResult.StaffIdentifier);
+
+        // When the execution strategy retries after an apparent transient network failure
+        // where the records were already committed in the prior attempt with the exact matching username:
+        var retryResult = await staffService.CreateStaffAsync(dto, null, null);
+        Assert.NotNull(retryResult);
+        Assert.Equal(firstResult.StaffId, retryResult.StaffId);
+        Assert.Equal("STF-RETRY-001", retryResult.StaffIdentifier);
+
+        // Verify only 1 User and 1 Staff record exist in the database (no duplicate or orphaned records)
+        var userCount = await context.Users.CountAsync(u => u.Username == "retry_test");
+        var staffCount = await context.StaffMembers.CountAsync(s => s.StaffIdentifier == "STF-RETRY-001");
+        Assert.Equal(1, userCount);
+        Assert.Equal(1, staffCount);
+    }
+
+    [Fact]
+    public async Task CreateStaffAsync_CollisionWithDifferentUser_ThrowsInvalidOperationException()
+    {
+        var (staffService, hasher, context) = CreateStaffService();
+
+        var dto1 = new CreateStaffDto
+        {
+            StaffIdentifier = "STF-COLLISION-001",
+            StaffName = "Prof. Collision One",
+            Username = "collision_user_one",
+            Department = "CSE",
+            InitialPassword = "CollisionPass1!",
+            ConfirmPassword = "CollisionPass1!",
+            AssignedYear = 1,
+            AssignedClass = "A"
+        };
+        await staffService.CreateStaffAsync(dto1, null, null);
+
+        // Attempt to create another staff member with same StaffIdentifier but different username
+        var dto2 = new CreateStaffDto
+        {
+            StaffIdentifier = "STF-COLLISION-001",
+            StaffName = "Prof. Collision Two",
+            Username = "collision_user_two",
+            Department = "CSE",
+            InitialPassword = "CollisionPass2!",
+            ConfirmPassword = "CollisionPass2!",
+            AssignedYear = 1,
+            AssignedClass = "A"
+        };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => staffService.CreateStaffAsync(dto2, null, null));
+        Assert.Contains("already exists", ex.Message);
+    }
 }
