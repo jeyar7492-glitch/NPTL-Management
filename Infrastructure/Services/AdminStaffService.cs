@@ -43,6 +43,7 @@ public class AdminStaffService : IAdminStaffService
             var s = search.Trim().ToLower();
             query = query.Where(st => st.StaffName.ToLower().Contains(s) || 
                                       st.StaffIdentifier.ToLower().Contains(s) ||
+                                      (st.User != null && st.User.Username.ToLower().Contains(s)) ||
                                       (st.User != null && st.User.Email != null && st.User.Email.ToLower().Contains(s)));
         }
 
@@ -93,7 +94,11 @@ public class AdminStaffService : IAdminStaffService
                 UserId = st.UserId,
                 StaffName = st.StaffName,
                 StaffIdentifier = st.StaffIdentifier,
+                Username = st.User?.Username ?? st.StaffIdentifier,
                 Department = st.Department,
+                Designation = !string.IsNullOrWhiteSpace(st.AssignedClass) 
+                    ? $"Faculty Advisor (Sec {st.AssignedClass})" 
+                    : "Faculty Advisor",
                 AssignedYear = st.AssignedYear,
                 AssignedClass = st.AssignedClass,
                 Email = st.User?.Email,
@@ -133,7 +138,11 @@ public class AdminStaffService : IAdminStaffService
             UserId = staff.UserId,
             StaffName = staff.StaffName,
             StaffIdentifier = staff.StaffIdentifier,
+            Username = staff.User?.Username ?? staff.StaffIdentifier,
             Department = staff.Department,
+            Designation = !string.IsNullOrWhiteSpace(staff.AssignedClass) 
+                ? $"Faculty Advisor (Sec {staff.AssignedClass})" 
+                : "Faculty Advisor",
             AssignedYear = staff.AssignedYear,
             AssignedClass = staff.AssignedClass,
             Email = staff.User?.Email,
@@ -146,32 +155,59 @@ public class AdminStaffService : IAdminStaffService
     public async Task<AdminStaffDetailDto> CreateStaffAsync(CreateStaffDto dto, Guid? adminUserId, string? ipAddress, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(dto.StaffName))
-            throw new ArgumentException("Staff name is required.");
+            throw new ArgumentException("Staff Name is required.");
         if (string.IsNullOrWhiteSpace(dto.StaffIdentifier))
-            throw new ArgumentException("Staff identifier is required.");
+            throw new ArgumentException("Staff ID is required.");
+        if (string.IsNullOrWhiteSpace(dto.InitialPassword))
+            throw new ArgumentException("Password is required.");
+        if (dto.InitialPassword.Length < 8)
+            throw new ArgumentException("Password must be at least 8 characters long.");
+        if (!string.Equals(dto.InitialPassword, dto.ConfirmPassword, StringComparison.Ordinal))
+            throw new ArgumentException("Password and Confirm Password do not match.");
         if (dto.AssignedYear < 1 || dto.AssignedYear > 4)
             throw new ArgumentException("Assigned year must be between 1 and 4.");
 
-        var cleanId = dto.StaffIdentifier.Trim();
-        if (await _context.StaffMembers.AnyAsync(s => s.StaffIdentifier == cleanId, cancellationToken) ||
-            await _context.Users.AnyAsync(u => u.Username == cleanId, cancellationToken))
+        var cleanEmail = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email.Trim();
+        if (!string.IsNullOrWhiteSpace(cleanEmail))
         {
-            throw new InvalidOperationException($"Staff member with identifier '{cleanId}' already exists.");
+            var emailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+            if (!System.Text.RegularExpressions.Regex.IsMatch(cleanEmail, emailPattern))
+            {
+                throw new ArgumentException("Invalid email address format.");
+            }
         }
 
-        var rawPassword = !string.IsNullOrWhiteSpace(dto.InitialPassword) ? dto.InitialPassword : "Staff@Nptel2026";
+        var cleanId = dto.StaffIdentifier.Trim();
+        var cleanUsername = !string.IsNullOrWhiteSpace(dto.Username) ? dto.Username.Trim() : cleanId;
+
+        // Check uniqueness across Staff and User records (case-insensitive)
+        if (await _context.StaffMembers.AnyAsync(s => s.StaffIdentifier.ToUpper() == cleanId.ToUpper(), cancellationToken))
+        {
+            throw new InvalidOperationException($"Staff member with Staff ID '{cleanId}' already exists.");
+        }
+
+        if (await _context.Users.AnyAsync(u => u.Username.ToUpper() == cleanUsername.ToUpper(), cancellationToken))
+        {
+            throw new InvalidOperationException($"Account with username '{cleanUsername}' already exists.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(cleanEmail) &&
+            await _context.Users.AnyAsync(u => u.Email != null && u.Email.ToUpper() == cleanEmail.ToUpper(), cancellationToken))
+        {
+            throw new InvalidOperationException($"An account with email '{cleanEmail}' is already registered.");
+        }
+
         var user = new User
         {
             Id = Guid.NewGuid(),
-            Username = cleanId,
-            PasswordHash = _passwordHasher.HashPassword(rawPassword),
+            Username = cleanUsername,
+            PasswordHash = _passwordHasher.HashPassword(dto.InitialPassword),
             Role = UserRole.Staff,
-            Email = dto.Email?.Trim(),
+            Email = cleanEmail,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
-        _context.Users.Add(user);
 
         var staff = new Staff
         {
@@ -181,22 +217,47 @@ public class AdminStaffService : IAdminStaffService
             StaffIdentifier = cleanId,
             Department = !string.IsNullOrWhiteSpace(dto.Department) ? dto.Department.Trim() : "CSE",
             AssignedYear = dto.AssignedYear,
-            AssignedClass = dto.AssignedClass?.Trim() ?? "A",
+            AssignedClass = !string.IsNullOrWhiteSpace(dto.AssignedClass) ? dto.AssignedClass.Trim() : "A",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
-        _context.StaffMembers.Add(staff);
 
-        await _context.SaveChangesAsync(cancellationToken);
+        var isRelational = _context.Database.IsRelational();
+        using var transaction = isRelational ? await _context.Database.BeginTransactionAsync(cancellationToken) : null;
+        try
+        {
+            _context.Users.Add(user);
+            _context.StaffMembers.Add(staff);
+            await _context.SaveChangesAsync(cancellationToken);
 
+            if (transaction != null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+        }
+        catch
+        {
+            if (transaction != null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+            }
+            throw;
+        }
+
+        var desig = !string.IsNullOrWhiteSpace(dto.Designation) ? dto.Designation.Trim() : $"Faculty Advisor (Sec {staff.AssignedClass})";
         await _auditLogService.LogAsync(
             "Staff Created", 
-            $"Created faculty {staff.StaffName} ({staff.StaffIdentifier}) assigned to {staff.Department} Y{staff.AssignedYear} Sec {staff.AssignedClass}", 
+            $"Created faculty {staff.StaffName} ({staff.StaffIdentifier}, @{user.Username}) with designation '{desig}' assigned to {staff.Department} Y{staff.AssignedYear} Sec {staff.AssignedClass}", 
             adminUserId, 
             ipAddress, 
             cancellationToken);
 
-        return (await GetStaffByIdAsync(staff.StaffId, cancellationToken))!;
+        var result = await GetStaffByIdAsync(staff.StaffId, cancellationToken);
+        if (result != null && !string.IsNullOrWhiteSpace(dto.Designation))
+        {
+            result.Designation = dto.Designation.Trim();
+        }
+        return result!;
     }
 
     public async Task<AdminStaffDetailDto> UpdateStaffAsync(Guid staffId, UpdateStaffDto dto, Guid? adminUserId, string? ipAddress, CancellationToken cancellationToken = default)

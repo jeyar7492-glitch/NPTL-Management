@@ -132,7 +132,9 @@ public class AdminStaffListDto
     public Guid UserId { get; set; }
     public string StaffName { get; set; } = string.Empty;
     public string StaffIdentifier { get; set; } = string.Empty;
+    public string? Username { get; set; }
     public string Department { get; set; } = string.Empty;
+    public string? Designation { get; set; }
     public int AssignedYear { get; set; }
     public string? AssignedClass { get; set; }
     public string? Email { get; set; }
@@ -147,7 +149,9 @@ public class AdminStaffDetailDto
     public Guid UserId { get; set; }
     public string StaffName { get; set; } = string.Empty;
     public string StaffIdentifier { get; set; } = string.Empty;
+    public string? Username { get; set; }
     public string Department { get; set; } = string.Empty;
+    public string? Designation { get; set; }
     public int AssignedYear { get; set; }
     public string? AssignedClass { get; set; }
     public string? Email { get; set; }
@@ -160,17 +164,21 @@ public class CreateStaffDto
 {
     public string StaffName { get; set; } = string.Empty;
     public string StaffIdentifier { get; set; } = string.Empty;
+    public string? Username { get; set; }
     public string Department { get; set; } = "CSE";
+    public string? Designation { get; set; }
     public int AssignedYear { get; set; } = 1;
     public string? AssignedClass { get; set; } = "A";
     public string? Email { get; set; }
     public string? InitialPassword { get; set; }
+    public string? ConfirmPassword { get; set; }
 }
 
 public class UpdateStaffDto
 {
     public string StaffName { get; set; } = string.Empty;
     public string Department { get; set; } = "CSE";
+    public string? Designation { get; set; }
     public int AssignedYear { get; set; }
     public string? AssignedClass { get; set; }
     public string? Email { get; set; }

@@ -576,16 +576,7 @@
   }
 
   async function loadAdminStaff(force) {
-    const result = await cached("/api/v1/admin/staff?page=1&pageSize=50", force);
-    setPageTitle("Staff", "Admin portal");
-    $("statsGrid").innerHTML = "";
-    $("welcomeBanner").innerHTML = banner("Staff Management", "Create staff accounts and assign them to a Year/Class scope.");
-    $("primaryHeading").textContent = "Staff Members";
-    $("primaryContent").innerHTML =
-      adminStaffCreateForm() +
-      tableCards(result?.data?.items || [], "admin-staff");
-    $("profileContent").innerHTML = '<div class="empty">New staff login ID is the Staff ID. Default temporary password is Staff@Nptel2026.</div>';
-    bindAdminStaffCreate();
+    await fetchAndRenderAdminStaff(force);
   }
 
   async function loadAdminCourses(force) {
@@ -870,6 +861,21 @@
       if (type.includes("student")) {
         title = item.name || item.studentName || "Student";
         meta = [item.registerNumber, item.department, item.classSection, item.year ? "Year " + item.year : null, item.semester ? "Sem " + item.semester : null, item.academicYear].filter(Boolean);
+      } else if (type === "admin-staff") {
+        title = item.staffName || "Staff Member";
+        const statusBadge = item.isActive !== false
+          ? '<span class="badge badge-success">Active</span>'
+          : '<span class="badge badge-danger">Inactive</span>';
+        meta = [
+          'ID: <strong>' + escapeHtml(item.staffIdentifier || "") + '</strong>',
+          item.username ? '@' + escapeHtml(item.username) : null,
+          item.email ? escapeHtml(item.email) : null,
+          item.department ? 'Dept: ' + escapeHtml(item.department) : null,
+          item.designation ? escapeHtml(item.designation) : (item.assignedClass ? 'Class ' + escapeHtml(item.assignedClass) : null),
+          item.assignedYear ? 'Year ' + item.assignedYear : null,
+          item.assignedStudentCount != null ? item.assignedStudentCount + ' student(s)' : null,
+          statusBadge
+        ].filter(Boolean);
       } else if (type === "staff") {
         title = item.staffName || "Staff";
         meta = [item.staffIdentifier, item.department, item.assignedYear ? "Year " + item.assignedYear : null, item.assignedClass ? "Class " + item.assignedClass : null].filter(Boolean);
@@ -896,6 +902,12 @@
         meta = [item.username, item.role, item.timestamp ? formatDate(item.timestamp) : null, item.details].filter(Boolean);
       }
       let action = "";
+      if (type === "admin-staff" && item.staffId) {
+        const toggleLabel = item.isActive !== false ? "Deactivate" : "Activate";
+        const toggleNext = item.isActive !== false ? "false" : "true";
+        action = '<button class="ghost-btn small" data-staff-toggle="' + item.staffId + '" data-active="' + toggleNext + '">' + toggleLabel + '</button>' +
+                 '<button class="ghost-btn small" data-staff-reset="' + item.staffId + '" data-name="' + escapeHtml(item.staffName || item.staffIdentifier) + '">Reset Password</button>';
+      }
       if (type === "staff" || type.includes("student")) {
         const id = item.studentId || item.StudentId;
         if (id) action = '<button class="ghost-btn small" data-student="' + id + '">View</button>';
@@ -912,7 +924,7 @@
       if (type.includes("certificate") && item.certificateId && item.hasFile) {
         action = '<button class="ghost-btn small" data-cert="' + item.certificateId + '">Open</button>';
       }
-      return '<div class="data-item"><div><div class="data-title">' + escapeHtml(title) + '</div><div class="data-meta">' + escapeHtml(meta.join(" · ")) + '</div></div>' +
+      return '<div class="data-item"><div><div class="data-title">' + escapeHtml(title) + '</div><div class="data-meta">' + (type === "admin-staff" ? meta.join(" · ") : escapeHtml(meta.join(" · "))) + '</div></div>' +
         (action ? '<div class="row-actions">' + action + '</div>' : "") + '</div>';
     }).join("") + '</div>';
   }
@@ -1123,20 +1135,7 @@
   }
 
   function adminStaffCreateForm() {
-    return '<div class="certificate-box admin-form-box">' +
-      '<div class="box-title">Create New Staff Account</div>' +
-      '<div class="data-meta">Staff ID becomes the login ID. Assign the Year/Class scope for read-only student access.</div>' +
-      '<div class="form-grid">' +
-      '<div><label>Staff Name</label><input id="newStaffName" class="form-input" placeholder="Faculty name" required></div>' +
-      '<div><label>Staff ID</label><input id="newStaffId" class="form-input" placeholder="e.g. CSE-STF-105" required></div>' +
-      '<div><label>Department</label><input id="newStaffDept" class="form-input" value="CSE" placeholder="e.g. CSE"></div>' +
-      '<div><label>Assigned Year</label><select id="newStaffYear" class="form-input"><option value="1">Year 1</option><option value="2">Year 2</option><option value="3" selected>Year 3</option><option value="4">Year 4</option></select></div>' +
-      '<div><label>Assigned Section</label><input id="newStaffSection" class="form-input" value="A" placeholder="e.g. A"></div>' +
-      '<div><label>Email</label><input id="newStaffEmail" class="form-input" type="email" placeholder="faculty@college.edu"></div>' +
-      '</div>' +
-      '<div class="row-actions"><button class="primary-btn small" id="createStaffBtn">Create Staff Account</button></div>' +
-      '<div id="createStaffMessage" class="form-message"></div>' +
-      '</div>';
+    return "";
   }
 
   function bindAdminStudentCreate() {
@@ -1178,40 +1177,395 @@
     });
   }
 
-  function bindAdminStaffCreate() {
-    const btn = $("createStaffBtn");
-    if (!btn) return;
-    btn.addEventListener("click", async () => {
-      const message = $("createStaffMessage");
-      const staffName = $("newStaffName")?.value?.trim();
-      const staffIdentifier = $("newStaffId")?.value?.trim();
-      if (!staffName || !staffIdentifier) {
-        message.textContent = "Staff Name and Staff ID are required.";
-        return;
+  const adminStaffListState = {
+    items: [],
+    search: "",
+    latestCreatedCredentials: null
+  };
+
+  async function copyText(text, btnElement, label) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
       }
-      message.textContent = "Creating staff account…";
-      try {
-        await request("/api/v1/admin/staff", {
-          method: "POST",
-          body: {
-            staffName,
-            staffIdentifier,
-            department: $("newStaffDept")?.value?.trim() || "CSE",
-            assignedYear: Number($("newStaffYear")?.value || 1),
-            assignedClass: $("newStaffSection")?.value?.trim() || "A",
-            email: $("newStaffEmail")?.value?.trim() || null
-          }
-        });
-        message.className = "form-message success";
-        message.textContent = "Staff account created. Login: " + staffIdentifier + " | Temporary password: Staff@Nptel2026";
-        state.cache.delete("/api/v1/admin/staff?page=1&pageSize=50");
-        await loadAdminStaff(true);
-        $("welcomeBanner").innerHTML = banner("Staff account created", "Login ID: " + staffIdentifier + " · Temporary password: Staff@Nptel2026");
-      } catch (err) {
-        message.className = "form-message";
-        message.textContent = err.message || "Staff creation failed.";
+      if (btnElement) {
+        const orig = btnElement.innerHTML;
+        btnElement.classList.add("copied");
+        btnElement.innerHTML = "✓ Copied!";
+        setTimeout(() => {
+          btnElement.classList.remove("copied");
+          btnElement.innerHTML = orig;
+        }, 2000);
+      }
+    } catch (_) {
+      alert("Please copy manually: " + text);
+    }
+  }
+
+  function printCredentials(creds) {
+    const win = window.open("", "_blank");
+    if (!win) {
+      alert("Print popup blocked. Please allow popups to print credentials.");
+      return;
+    }
+    win.document.write(
+      '<!DOCTYPE html><html><head><title>NPTEL Staff Credentials - ' + escapeHtml(creds.staffIdentifier) + '</title>' +
+      '<style>' +
+      'body{font-family:system-ui,-apple-system,sans-serif;padding:32px;color:#1e293b;max-width:600px;margin:0 auto;}' +
+      '.header{border-bottom:2px solid #4f46e5;padding-bottom:12px;margin-bottom:20px;}' +
+      'h2{margin:0 0 4px;color:#1e1b4b;}' +
+      '.sub{font-size:12px;color:#64748b;}' +
+      '.warning{background:#fef3c7;border:1px solid #fde047;padding:12px;border-radius:8px;font-size:12px;color:#854d0e;margin-bottom:20px;}' +
+      '.table{width:100%;border-collapse:collapse;margin-top:12px;}' +
+      '.table td{padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:13px;}' +
+      '.table td:first-child{color:#64748b;font-weight:600;width:35%;}' +
+      '.table td:last-child{font-weight:700;color:#0f172a;font-family:monospace;font-size:14px;}' +
+      '.footer{margin-top:28px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px;text-align:center;}' +
+      '</style></head><body>' +
+      '<div class="header"><h2>NPTEL Management System</h2><div class="sub">Confidential Staff Account Credentials · ' + new Date().toLocaleDateString() + '</div></div>' +
+      '<div class="warning"><strong>Confidential Account Security Notice:</strong> These credentials were created by the Administrator. Please store this document securely and prompt the staff member to change their password upon initial login if required.</div>' +
+      '<table class="table">' +
+      '<tr><td>Staff ID (Login ID)</td><td>' + escapeHtml(creds.staffIdentifier) + '</td></tr>' +
+      '<tr><td>Full Name</td><td style="font-family:inherit;">' + escapeHtml(creds.staffName) + '</td></tr>' +
+      '<tr><td>Username</td><td>@' + escapeHtml(creds.username) + '</td></tr>' +
+      '<tr><td>Initial Password</td><td style="color:#4338ca;font-size:16px;">' + escapeHtml(creds.password) + '</td></tr>' +
+      '<tr><td>Department</td><td style="font-family:inherit;">' + escapeHtml(creds.department) + '</td></tr>' +
+      '<tr><td>Designation</td><td style="font-family:inherit;">' + escapeHtml(creds.designation || "Faculty Advisor") + '</td></tr>' +
+      '<tr><td>Assigned Scope</td><td style="font-family:inherit;">Year ' + escapeHtml(String(creds.assignedYear)) + ' - Section ' + escapeHtml(creds.assignedClass || "All") + '</td></tr>' +
+      (creds.email ? '<tr><td>Email</td><td style="font-family:inherit;">' + escapeHtml(creds.email) + '</td></tr>' : '') +
+      '<tr><td>Login Portal URL</td><td style="font-family:inherit;">' + window.location.origin + '</td></tr>' +
+      '</table>' +
+      '<div class="footer">Generated by NPTEL Management System · Administrator Security Provisioning</div>' +
+      '<script>window.onload = function() { window.print(); };</script>' +
+      '</body></html>'
+    );
+    win.document.close();
+  }
+
+  async function fetchAndRenderAdminStaff(force) {
+    setPageTitle("Staff Management", "Admin portal");
+    $("statsGrid").innerHTML = "";
+    $("welcomeBanner").innerHTML = banner("Staff Management", "Create staff accounts, set custom login credentials, and assign faculty academic scope.");
+    $("primaryHeading").textContent = "Faculty & Staff Accounts";
+    $("profileContent").innerHTML = 
+      '<div class="certificate-box">' +
+        '<div class="box-title">Staff Administration Policy</div>' +
+        '<div class="data-meta" style="line-height:1.6;margin-top:8px;">' +
+          '• Staff members can sign in with their <strong>Staff ID</strong>, <strong>Username</strong>, or <strong>Email</strong>.<br>' +
+          '• Passwords entered by Admin are hashed with BCrypt and shown in a one-time panel upon creation.<br>' +
+          '• Staff users have scoped read-only access to students in their assigned Year and Class.<br>' +
+          '• Staff users cannot access administrative endpoints or create other accounts.' +
+        '</div>' +
+      '</div>';
+
+    try {
+      showLoading(true);
+      const result = await cached("/api/v1/admin/staff?page=1&pageSize=100", force);
+      adminStaffListState.items = result?.data?.items || [];
+      renderAdminStaffView();
+    } catch (err) {
+      $("primaryContent").innerHTML = '<div class="empty">Unable to load staff records: ' + escapeHtml(err.message) + '</div>';
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  function renderAdminStaffView() {
+    let filtered = adminStaffListState.items;
+    if (adminStaffListState.search) {
+      const q = adminStaffListState.search.toLowerCase();
+      filtered = filtered.filter(st =>
+        (st.staffName && st.staffName.toLowerCase().includes(q)) ||
+        (st.staffIdentifier && st.staffIdentifier.toLowerCase().includes(q)) ||
+        (st.username && st.username.toLowerCase().includes(q)) ||
+        (st.email && st.email.toLowerCase().includes(q)) ||
+        (st.department && st.department.toLowerCase().includes(q)) ||
+        (st.designation && st.designation.toLowerCase().includes(q))
+      );
+    }
+
+    $("primaryHeading").textContent = "Faculty & Staff Accounts (" + filtered.length + ")";
+
+    let credsPanelHtml = "";
+    if (adminStaffListState.latestCreatedCredentials) {
+      const creds = adminStaffListState.latestCreatedCredentials;
+      credsPanelHtml =
+        '<div class="credentials-panel" id="oneTimeCredentialsPanel">' +
+          '<div class="credentials-header">' +
+            '<div>' +
+              '<h4>✓ Staff Account Created Successfully</h4>' +
+              '<div style="font-size:12px;color:#c7d2fe;margin-top:3px;">Account created for <strong>' + escapeHtml(creds.staffName) + '</strong> (' + escapeHtml(creds.department) + ')</div>' +
+            '</div>' +
+            '<button class="ghost-btn small" id="dismissCredsBtn" style="background:rgba(255,255,255,0.15);border:0;color:#fff;">Dismiss ✕</button>' +
+          '</div>' +
+          '<div class="credentials-warning">' +
+            '<span>⚠️ <strong>One-Time Confirmation Notice:</strong> The initial password below is displayed once and will be cleared when dismissed or when the page is reloaded. Copy or print these credentials now.</span>' +
+          '</div>' +
+          '<div class="credentials-grid">' +
+            '<div class="credential-card">' +
+              '<div class="credential-label">Staff ID (Login ID)</div>' +
+              '<div class="credential-val">' + escapeHtml(creds.staffIdentifier) + '</div>' +
+              '<button class="copy-chip" data-copy-val="' + escapeHtml(creds.staffIdentifier) + '" data-copy-name="Staff ID">📋 Copy ID</button>' +
+            '</div>' +
+            '<div class="credential-card">' +
+              '<div class="credential-label">Username</div>' +
+              '<div class="credential-val">@' + escapeHtml(creds.username) + '</div>' +
+              '<button class="copy-chip" data-copy-val="' + escapeHtml(creds.username) + '" data-copy-name="Username">📋 Copy Username</button>' +
+            '</div>' +
+            '<div class="credential-card">' +
+              '<div class="credential-label">Password</div>' +
+              '<div class="credential-val" style="color:#a5b4fc;">' + escapeHtml(creds.password) + '</div>' +
+              '<button class="copy-chip" data-copy-val="' + escapeHtml(creds.password) + '" data-copy-name="Password">📋 Copy Password</button>' +
+            '</div>' +
+            '<div class="credential-card">' +
+              '<div class="credential-label">Designation & Scope</div>' +
+              '<div class="credential-val" style="font-family:inherit;font-size:13px;">' + escapeHtml(creds.designation || 'Faculty') + ' · Y' + escapeHtml(String(creds.assignedYear)) + ' ' + escapeHtml(creds.assignedClass || 'A') + '</div>' +
+              '<button class="copy-chip" id="printCredsBtn" style="background:#4338ca;">🖨️ Print / Save</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    }
+
+    const toolbarHtml =
+      '<div class="table-toolbar">' +
+        '<div class="search-wrap">' +
+          '<input id="staffSearchInput" placeholder="Search staff by ID, name, username, dept..." value="' + escapeHtml(adminStaffListState.search) + '">' +
+        '</div>' +
+        '<div class="table-toolbar-actions">' +
+          '<button class="primary-btn small" id="openCreateStaffBtn" style="display:inline-flex;align-items:center;gap:6px;">+ Create Staff</button>' +
+          '<button class="ghost-btn small" id="refreshStaffBtn">⟳ Refresh</button>' +
+        '</div>' +
+      '</div>';
+
+    const modalHtml =
+      '<div class="modal-overlay" id="staffCreateModal" hidden>' +
+        '<div class="modal-card">' +
+          '<div class="modal-header">' +
+            '<h3 class="modal-title">Create New Staff Account</h3>' +
+            '<button class="modal-close-btn" id="closeStaffModalBtn" type="button">✕</button>' +
+          '</div>' +
+          '<div class="data-meta" style="margin-top:-6px;margin-bottom:14px;">Enter the staff member details and assign their custom login credentials. No credentials will be generated silently.</div>' +
+          '<form id="newStaffModalForm" novalidate>' +
+            '<div class="form-grid">' +
+              '<div><label for="modalStaffId">Staff ID *</label><input id="modalStaffId" class="form-input" placeholder="e.g. STF-CSE-101" required autocomplete="off"></div>' +
+              '<div><label for="modalStaffName">Full Name *</label><input id="modalStaffName" class="form-input" placeholder="e.g. Dr. Alan Turing" required></div>' +
+              '<div><label for="modalStaffUsername">Username *</label><input id="modalStaffUsername" class="form-input" placeholder="e.g. alan_turing" required autocomplete="off"></div>' +
+              '<div><label for="modalStaffEmail">Email Address</label><input id="modalStaffEmail" class="form-input" type="email" placeholder="faculty@college.edu"></div>' +
+              '<div><label for="modalStaffDept">Department</label><input id="modalStaffDept" class="form-input" value="CSE" placeholder="e.g. CSE"></div>' +
+              '<div><label for="modalStaffDesignation">Designation</label><input id="modalStaffDesignation" class="form-input" value="Assistant Professor" placeholder="e.g. Associate Professor"></div>' +
+              '<div><label for="modalStaffYear">Assigned Year</label><select id="modalStaffYear" class="form-input"><option value="1">Year 1</option><option value="2">Year 2</option><option value="3" selected>Year 3</option><option value="4">Year 4</option></select></div>' +
+              '<div><label for="modalStaffSection">Assigned Class / Section</label><input id="modalStaffSection" class="form-input" value="A" placeholder="e.g. A"></div>' +
+              '<div><label for="modalStaffPassword">Password * (min 8 characters)</label><input id="modalStaffPassword" class="form-input" type="password" placeholder="Enter custom password" required autocomplete="new-password"></div>' +
+              '<div><label for="modalStaffConfirmPassword">Confirm Password *</label><input id="modalStaffConfirmPassword" class="form-input" type="password" placeholder="Confirm password" required autocomplete="new-password"></div>' +
+            '</div>' +
+            '<div id="modalStaffMessage" class="form-message" style="margin-top:12px;"></div>' +
+            '<div class="row-actions" style="margin-top:16px;">' +
+              '<button class="ghost-btn small" type="button" id="cancelStaffModalBtn">Cancel</button>' +
+              '<button class="primary-btn small" type="submit" id="submitStaffModalBtn">Create Staff Account</button>' +
+            '</div>' +
+          '</form>' +
+        '</div>' +
+      '</div>';
+
+    $("primaryContent").innerHTML =
+      credsPanelHtml +
+      toolbarHtml +
+      tableCards(filtered, "admin-staff") +
+      modalHtml;
+
+    bindAdminStaffEvents();
+  }
+
+  function bindAdminStaffEvents() {
+    const searchInput = $("staffSearchInput");
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => {
+        adminStaffListState.search = e.target.value.trim();
+        renderAdminStaffView();
+        const updatedInput = $("staffSearchInput");
+        if (updatedInput) {
+          updatedInput.focus();
+          updatedInput.setSelectionRange(updatedInput.value.length, updatedInput.value.length);
+        }
+      });
+    }
+
+    const refreshBtn = $("refreshStaffBtn");
+    if (refreshBtn) {
+      refreshBtn.addEventListener("click", () => {
+        state.cache.delete("/api/v1/admin/staff?page=1&pageSize=100");
+        loadAdminStaff(true);
+      });
+    }
+
+    const openBtn = $("openCreateStaffBtn");
+    const modal = $("staffCreateModal");
+    if (openBtn && modal) {
+      openBtn.addEventListener("click", () => {
+        modal.hidden = false;
+        const msg = $("modalStaffMessage");
+        if (msg) {
+          msg.textContent = "";
+          msg.className = "form-message";
+        }
+        $("modalStaffId")?.focus();
+      });
+    }
+
+    const closeModal = () => { if (modal) modal.hidden = true; };
+    $("closeStaffModalBtn")?.addEventListener("click", closeModal);
+    $("cancelStaffModalBtn")?.addEventListener("click", closeModal);
+
+    $("dismissCredsBtn")?.addEventListener("click", () => {
+      adminStaffListState.latestCreatedCredentials = null;
+      renderAdminStaffView();
+    });
+
+    document.querySelectorAll("[data-copy-val]").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const val = chip.dataset.copyVal;
+        const name = chip.dataset.copyName || "Value";
+        copyText(val, chip, name);
+      });
+    });
+
+    $("printCredsBtn")?.addEventListener("click", () => {
+      if (adminStaffListState.latestCreatedCredentials) {
+        printCredentials(adminStaffListState.latestCreatedCredentials);
       }
     });
+
+    const form = $("newStaffModalForm");
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const msg = $("modalStaffMessage");
+        msg.className = "form-message";
+
+        const staffId = $("modalStaffId")?.value?.trim();
+        const staffName = $("modalStaffName")?.value?.trim();
+        const username = $("modalStaffUsername")?.value?.trim();
+        const email = $("modalStaffEmail")?.value?.trim();
+        const dept = $("modalStaffDept")?.value?.trim() || "CSE";
+        const designation = $("modalStaffDesignation")?.value?.trim() || "Faculty";
+        const year = Number($("modalStaffYear")?.value || 1);
+        const section = $("modalStaffSection")?.value?.trim() || "A";
+        const password = $("modalStaffPassword")?.value || "";
+        const confirmPassword = $("modalStaffConfirmPassword")?.value || "";
+
+        if (!staffId) { msg.textContent = "Staff ID is required."; return; }
+        if (!staffName) { msg.textContent = "Full Name is required."; return; }
+        if (!username) { msg.textContent = "Username is required."; return; }
+        if (!password) { msg.textContent = "Password is required."; return; }
+        if (password.length < 8) { msg.textContent = "Password must be at least 8 characters long."; return; }
+        if (password !== confirmPassword) { msg.textContent = "Passwords do not match."; return; }
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          msg.textContent = "Please enter a valid email address.";
+          return;
+        }
+
+        const submitBtn = $("submitStaffModalBtn");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Creating Account…";
+        msg.textContent = "";
+
+        try {
+          await request("/api/v1/admin/staff", {
+            method: "POST",
+            body: {
+              staffIdentifier: staffId,
+              staffName: staffName,
+              username: username,
+              email: email || null,
+              department: dept,
+              designation: designation,
+              assignedYear: year,
+              assignedClass: section,
+              initialPassword: password,
+              confirmPassword: confirmPassword
+            }
+          });
+
+          adminStaffListState.latestCreatedCredentials = {
+            staffIdentifier: staffId,
+            staffName: staffName,
+            username: username,
+            email: email,
+            department: dept,
+            designation: designation,
+            assignedYear: year,
+            assignedClass: section,
+            password: password
+          };
+
+          closeModal();
+          state.cache.delete("/api/v1/admin/staff?page=1&pageSize=100");
+          await loadAdminStaff(true);
+        } catch (err) {
+          msg.textContent = err.message || "Failed to create staff account.";
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Create Staff Account";
+        }
+      });
+    }
+
+    document.querySelectorAll("[data-staff-toggle]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const staffId = btn.dataset.staffToggle;
+        const targetActive = btn.dataset.active === "true";
+        btn.disabled = true;
+        try {
+          await request("/api/v1/admin/staff/" + staffId + "/status", {
+            method: "PATCH",
+            body: { isActive: targetActive }
+          });
+          state.cache.delete("/api/v1/admin/staff?page=1&pageSize=100");
+          await loadAdminStaff(true);
+        } catch (err) {
+          alert(err.message || "Could not update staff status.");
+          btn.disabled = false;
+        }
+      });
+    });
+
+    document.querySelectorAll("[data-staff-reset]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const staffId = btn.dataset.staffReset;
+        const name = btn.dataset.name || "this staff member";
+        const newPassword = prompt("Enter a new password for " + name + " (minimum 8 characters):");
+        if (!newPassword) return;
+        if (newPassword.length < 8) {
+          alert("Password must be at least 8 characters long.");
+          return;
+        }
+        btn.disabled = true;
+        try {
+          await request("/api/v1/admin/staff/" + staffId + "/reset-password", {
+            method: "POST",
+            body: { newPassword: newPassword }
+          });
+          alert("Password reset successfully for " + name + ".");
+        } catch (err) {
+          alert(err.message || "Password reset failed.");
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  function bindAdminStaffCreate() {
+    bindAdminStaffEvents();
   }
 
   async function openAdminExamEditor(registrationId) {

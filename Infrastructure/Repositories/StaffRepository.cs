@@ -30,9 +30,17 @@ public class StaffRepository : IStaffRepository
 
     public async Task<Staff?> GetByIdentifierAsync(string staffIdentifier, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(staffIdentifier))
+            return null;
+
+        var clean = staffIdentifier.Trim().ToUpper();
         return await _context.StaffMembers
             .Include(s => s.User)
-            .FirstOrDefaultAsync(s => s.StaffIdentifier.ToUpper() == staffIdentifier.ToUpper(), cancellationToken);
+            .FirstOrDefaultAsync(s => 
+                s.StaffIdentifier.ToUpper() == clean ||
+                (s.User != null && s.User.Username.ToUpper() == clean) ||
+                (s.User != null && s.User.Email != null && s.User.Email.ToUpper() == clean), 
+                cancellationToken);
     }
 
     public async Task<int> GetCountAsync(CancellationToken cancellationToken = default)
